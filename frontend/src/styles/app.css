@@ -1,0 +1,14 @@
+body { font-family: Arial, sans-serif; margin: 0; padding: 1rem; }
+main { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; align-items: start; }
+textarea { width: 100%; min-height: 120px; }
+button { margin-top: 0.5rem; margin-right: 0.4rem; }
+.panel-header { display: flex; align-items: center; gap: 0.5rem; }
+.spinner { padding: 1rem; border: 2px solid #999; border-radius: 10px; text-align: center; }
+.spinning { animation: pulse 0.6s linear 1; border-color: #6f42c1; }
+.actions { display: flex; flex-wrap: wrap; }
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
