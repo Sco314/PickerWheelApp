@@ -1,0 +1,4 @@
+body { font-family: Arial, sans-serif; margin: 0; padding: 1rem; }
+main { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; align-items: start; }
+textarea { width: 100%; min-height: 120px; }
+button { margin-top: 0.5rem; }
