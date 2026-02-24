@@ -1,4 +1,400 @@
-body { font-family: Arial, sans-serif; margin: 0; padding: 1rem; }
-main { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; align-items: start; }
-textarea { width: 100%; min-height: 120px; }
-button { margin-top: 0.5rem; }
+/* ─── Reset & Base ──────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #f0f2f5;
+  color: #333;
+  min-height: 100vh;
+}
+#root { min-height: 100vh; }
+
+/* ─── App Shell ─────────────────────────────────────── */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ─── Header ────────────────────────────────────────── */
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  flex-wrap: wrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.app-header h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+.app-header nav {
+  display: flex;
+  gap: 0.25rem;
+}
+.header-project-select {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+.header-project-select select {
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.9rem;
+  max-width: 220px;
+}
+.header-tools {
+  display: flex;
+  gap: 0.25rem;
+}
+
+/* ─── Buttons ───────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary {
+  background: #667eea;
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) { background: #5a6fd6; }
+
+.btn-secondary {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+.btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.25); }
+
+.btn-nav {
+  background: transparent;
+  color: rgba(255,255,255,0.7);
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.btn-nav:hover { color: #fff; background: rgba(255,255,255,0.1); }
+.btn-nav.active {
+  color: #fff;
+  background: rgba(255,255,255,0.2);
+}
+
+.btn-sm { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: background 0.15s;
+}
+.btn-icon:hover { background: rgba(0,0,0,0.08); }
+.app-header .btn-icon { color: rgba(255,255,255,0.8); }
+.app-header .btn-icon:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+.btn-danger { color: #e74c3c; }
+.btn-danger:hover { background: rgba(231,76,60,0.1); }
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
+  font-size: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* ─── Picker Layout (3-column) ──────────────────────── */
+.picker-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  gap: 1rem;
+  padding: 1rem;
+  flex: 1;
+  align-items: start;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ─── List Panels ───────────────────────────────────── */
+.list-panel {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+.list-panel h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: #444;
+}
+.list-count {
+  font-weight: 400;
+  color: #888;
+  font-size: 0.85rem;
+}
+.name-list {
+  list-style: none;
+}
+.name-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.name-item:hover { background: #f5f5f5; }
+.name-text {
+  flex: 1;
+  font-size: 0.9rem;
+}
+.name-actions {
+  display: flex;
+  gap: 0.15rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.name-item:hover .name-actions { opacity: 1; }
+
+.list-panel-pickable { border-top: 3px solid #4ECDC4; }
+.list-panel-picked { border-top: 3px solid #FF6B6B; }
+
+/* ─── Spinner ───────────────────────────────────────── */
+.spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+}
+.spinner-canvas {
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 1;
+}
+.spin-button {
+  padding: 0.75rem 2.5rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 50px;
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 12px rgba(231,76,60,0.3);
+}
+.spin-button:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(231,76,60,0.4);
+}
+.spin-button:active:not(:disabled) { transform: scale(0.98); }
+.spin-button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.spin-result {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e74c3c;
+  text-align: center;
+  animation: fadeInScale 0.3s ease;
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ─── No Project State ──────────────────────────────── */
+.no-project {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 1rem;
+  padding: 3rem;
+  text-align: center;
+}
+.no-project h2 { color: #666; font-weight: 500; }
+.no-project p { color: #888; }
+
+/* ─── Class Manager ─────────────────────────────────── */
+.class-manager, .project-manager {
+  max-width: 700px;
+  margin: 1rem auto;
+  padding: 0 1rem;
+  width: 100%;
+}
+.class-manager-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.class-manager-header h2 { font-size: 1.2rem; }
+
+.create-class-form, .create-project-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.create-class-form input, .create-project-form input, .create-project-form select {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.create-class-form input:focus, .create-project-form input:focus {
+  border-color: #667eea;
+}
+
+/* ─── Class Cards ───────────────────────────────────── */
+.class-list, .project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.class-card, .project-card {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+.class-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.class-card-header:hover { background: #f8f8f8; }
+.expand-icon { font-size: 0.7rem; color: #999; width: 1rem; text-align: center; }
+.class-name { font-weight: 600; flex: 1; }
+.student-count { font-size: 0.8rem; color: #888; }
+.class-actions { display: flex; gap: 0.15rem; }
+
+.class-card-body {
+  padding: 0 1rem 1rem;
+  border-top: 1px solid #eee;
+}
+
+.add-students-form {
+  margin: 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.add-students-form textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+.add-students-form textarea:focus { border-color: #667eea; }
+
+.student-list {
+  list-style: none;
+}
+.student-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.student-item:hover { background: #f5f5f5; }
+.student-name {
+  flex: 1;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.15rem 0;
+}
+.student-name:hover { color: #667eea; }
+
+.inline-edit {
+  flex: 1;
+  padding: 0.2rem 0.4rem;
+  border: 2px solid #667eea;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+/* ─── Project Cards ─────────────────────────────────── */
+.project-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+}
+.project-info { flex: 1; }
+.project-info strong { display: block; font-size: 0.95rem; }
+.project-meta { font-size: 0.8rem; color: #888; }
+.project-actions { display: flex; gap: 0.5rem; align-items: center; }
+
+/* ─── Empty States ──────────────────────────────────── */
+.empty-state {
+  color: #999;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+/* ─── Responsive ────────────────────────────────────── */
+@media (max-width: 900px) {
+  .picker-layout {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .picker-layout > .spinner-container {
+    order: -1;
+  }
+  .list-panel { max-height: 300px; }
+  .app-header { gap: 0.5rem; }
+  .header-project-select { margin-left: 0; width: 100%; }
+  .header-project-select select { flex: 1; }
+}
+
+@media (max-width: 600px) {
+  .app-header h1 { font-size: 1.1rem; }
+  .create-class-form, .create-project-form { flex-direction: column; }
+  .spinner-canvas { max-width: 300px; }
+}
