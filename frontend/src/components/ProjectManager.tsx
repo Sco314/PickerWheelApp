@@ -79,7 +79,7 @@ export default function ProjectManager({ onSelectProject, onOpenClasses }: Props
                 <strong>{p.title}</strong>
                 <span className="project-meta">
                   {cls?.name ?? 'Unknown class'} &middot;{' '}
-                  {p.pickable.length} remaining &middot; {p.picked.length} picked
+                  {p.eligible.length} remaining &middot; {p.picked.length} picked
                 </span>
               </div>
               <div className="project-actions">

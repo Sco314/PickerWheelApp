@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 const COLORS = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
@@ -19,7 +19,6 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const angleRef = useRef(0);
-  const [displayResult, setDisplayResult] = useState<string | null>(null);
 
   const draw = useCallback((rotation: number) => {
     const canvas = canvasRef.current;
@@ -53,7 +52,7 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
       ctx.font = '16px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Add students to spin!', cx, cy);
+      ctx.fillText('Add names to spin!', cx, cy);
       return;
     }
 
@@ -150,9 +149,7 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
       if (t < 1) {
         animRef.current = requestAnimationFrame(animate);
       } else {
-        const winner = names[targetIndex];
-        setDisplayResult(winner.name);
-        onSpinComplete(winner.id);
+        onSpinComplete(names[targetIndex].id);
       }
     }
 
@@ -173,9 +170,6 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
       >
         {spinning ? 'Spinning...' : 'SPIN!'}
       </button>
-      {displayResult && !spinning && (
-        <div className="spin-result">{displayResult}</div>
-      )}
     </div>
   );
 }

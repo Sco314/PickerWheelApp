@@ -1,31 +1,44 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import ClassManager from './components/ClassManager';
+import ControlBar from './components/ControlBar';
+import LastWinner from './components/LastWinner';
 import ListPanel from './components/ListPanel';
 import Modal from './components/Modal';
 import ProjectManager from './components/ProjectManager';
 import SpinnerWheel from './components/SpinnerWheel';
 import {
+  type SpinRecord,
   exportData,
   getProject,
   getProjects,
   getQuickSpin,
   importData,
-  moveBackToPickable,
+  moveBackToEligible,
   quickSpinMoveBack,
   quickSpinPick,
   quickSpinRemove,
   quickSpinReset,
-  removeFromPickable,
+  removeFromEligible,
   resetProject,
   resolveNames,
   resolveQuickSpinNames,
+  setProjectMode,
+  setQuickSpinMode,
   setQuickSpinNames,
   spinPick,
+  undoProjectSpin,
+  undoQuickSpin,
+  restoreQuickSpinState,
+  restoreProjectState,
 } from './services/storage';
 import './styles/app.css';
 
 type Mode = 'quick' | string; // 'quick' or a project ID
+
+type UndoAction =
+  | { type: 'spin'; record: SpinRecord; prevLastWinner: SpinRecord | null }
+  | { type: 'reset'; prevEligible: string[]; prevPicked: string[]; prevHistory: SpinRecord[]; prevLastWinner: SpinRecord | null };
 
 function App() {
   const [mode, setMode] = useState<Mode>('quick');
@@ -41,9 +54,16 @@ function App() {
   const [showGear, setShowGear] = useState(false);
   const gearRef = useRef<HTMLDivElement>(null);
 
-  // Inline name editor for quick spin
+  // Edit drawer
   const [showEditor, setShowEditor] = useState(false);
   const [editorText, setEditorText] = useState('');
+  const [editorStatus, setEditorStatus] = useState<'idle' | 'editing' | 'applied'>('idle');
+  const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const editorDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Undo/redo
+  const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
+  const [lastWinner, setLastWinner] = useState<SpinRecord | null>(null);
 
   const refresh = () => setTick(t => t + 1);
 
@@ -90,63 +110,143 @@ function App() {
     } else {
       if (window.location.hash) window.location.hash = '';
     }
+    // Clear undo/lastWinner when switching modes
+    setUndoStack([]);
+    setLastWinner(null);
   }, [mode]);
 
-  // Derive display data based on mode
+  // Keyboard handler (Ctrl+Z)
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      const isTextInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      if (isTextInput) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        handleUndo();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  });
+
+  // Derive display data
   const isQuick = mode === 'quick';
   const project = !isQuick ? getProject(mode) : null;
+  const currentMode = isQuick ? getQuickSpin().mode : (project?.mode ?? 'remove');
 
-  let pickableNames: { id: string; name: string }[] = [];
+  let eligibleNames: { id: string; name: string }[] = [];
   let pickedNames: { id: string; name: string }[] = [];
 
   if (isQuick) {
     const qs = getQuickSpin();
-    pickableNames = resolveQuickSpinNames(qs.pickable);
+    eligibleNames = resolveQuickSpinNames(qs.eligible);
     pickedNames = resolveQuickSpinNames(qs.picked);
   } else if (project) {
-    pickableNames = resolveNames(project.classId, project.pickable);
+    eligibleNames = resolveNames(project.classId, project.eligible);
     pickedNames = resolveNames(project.classId, project.picked);
   }
 
   // Spin
   const handleSpinStart = useCallback(() => {
     if (spinning) return;
-    let winnerId: string | null;
+    let record: SpinRecord | null;
     if (isQuick) {
-      winnerId = quickSpinPick();
+      record = quickSpinPick();
     } else {
-      winnerId = spinPick(mode);
+      record = spinPick(mode);
     }
-    if (!winnerId) return;
-    setTargetId(winnerId);
+    if (!record) return;
+    setTargetId(record.entryId);
     setSpinning(true);
-  }, [mode, spinning, isQuick]);
+    // Push undo action
+    setUndoStack(prev => [...prev, { type: 'spin', record: record!, prevLastWinner: lastWinner }]);
+    setLastWinner(record);
+  }, [mode, spinning, isQuick, lastWinner]);
 
   const handleSpinComplete = useCallback(() => {
     setSpinning(false);
     refresh();
   }, []);
 
-  // Reset
-  const handleReset = () => {
-    if (confirm('Move all picked back to the pickable list?')) {
-      if (isQuick) quickSpinReset();
-      else resetProject(mode);
-      refresh();
+  // Undo
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+    const action = undoStack[undoStack.length - 1];
+    setUndoStack(prev => prev.slice(0, -1));
+
+    if (action.type === 'spin') {
+      if (isQuick) {
+        undoQuickSpin(action.record);
+      } else {
+        undoProjectSpin(mode, action.record);
+      }
+      setLastWinner(action.prevLastWinner);
+    } else if (action.type === 'reset') {
+      if (isQuick) {
+        restoreQuickSpinState(action.prevEligible, action.prevPicked, action.prevHistory);
+      } else {
+        restoreProjectState(mode, action.prevEligible, action.prevPicked, action.prevHistory);
+      }
+      setLastWinner(action.prevLastWinner);
     }
+    refresh();
+  };
+
+  // Reset Round
+  const handleResetRound = () => {
+    // Capture state for undo
+    let prevEligible: string[];
+    let prevPicked: string[];
+    let prevHistory: SpinRecord[];
+    if (isQuick) {
+      const qs = getQuickSpin();
+      prevEligible = [...qs.eligible];
+      prevPicked = [...qs.picked];
+      prevHistory = [...qs.history];
+      quickSpinReset();
+    } else {
+      prevEligible = [...(project?.eligible ?? [])];
+      prevPicked = [...(project?.picked ?? [])];
+      prevHistory = [...(project?.history ?? [])];
+      resetProject(mode);
+    }
+    setUndoStack(prev => [...prev, { type: 'reset', prevEligible, prevPicked, prevHistory, prevLastWinner: lastWinner }]);
+    setLastWinner(null);
+    refresh();
+  };
+
+  // Return winner to eligible (keeps in picked/history but re-adds to eligible)
+  const handleReturnWinner = () => {
+    if (!lastWinner) return;
+    if (isQuick) {
+      quickSpinMoveBack(lastWinner.entryId);
+    } else {
+      moveBackToEligible(mode, lastWinner.entryId);
+    }
+    setLastWinner({ ...lastWinner, removedFromPool: false });
+    refresh();
   };
 
   // Move back
   const handleMoveBack = (id: string) => {
     if (isQuick) quickSpinMoveBack(id);
-    else moveBackToPickable(mode, id);
+    else moveBackToEligible(mode, id);
     refresh();
   };
 
-  // Remove from pickable
+  // Remove from eligible
   const handleRemove = (id: string) => {
     if (isQuick) quickSpinRemove(id);
-    else removeFromPickable(mode, id);
+    else removeFromEligible(mode, id);
+    refresh();
+  };
+
+  // Mode toggle
+  const handleModeChange = (newMode: 'remove' | 'keep') => {
+    if (isQuick) setQuickSpinMode(newMode);
+    else setProjectMode(mode, newMode);
     refresh();
   };
 
@@ -156,18 +256,55 @@ function App() {
     setShowProjects(false);
   };
 
-  // Quick spin editor
+  // ─── Editor (Quick Spin) ──────────────────────────────
+
   const openEditor = () => {
     const qs = getQuickSpin();
     setEditorText(qs.items.map(i => i.name).join('\n'));
     setShowEditor(true);
+    setEditorStatus('idle');
+    setShowEditConfirm(false);
   };
 
-  const saveEditor = () => {
-    const names = editorText.split(/[,\n]/).map(n => n.trim()).filter(Boolean);
+  const applyEditorChanges = (text: string, force?: boolean) => {
+    const names = text.split(/[,\n]/).map(n => n.trim()).filter(Boolean);
+    const qs = getQuickSpin();
+    const hasPicked = qs.picked.length > 0;
+
+    if (hasPicked && !force) {
+      setShowEditConfirm(true);
+      return;
+    }
+
     setQuickSpinNames(names);
-    setShowEditor(false);
+    setEditorStatus('applied');
+    setShowEditConfirm(false);
+    setUndoStack([]);
+    setLastWinner(null);
     refresh();
+    setTimeout(() => setEditorStatus('idle'), 1500);
+  };
+
+  const handleEditorChange = (text: string) => {
+    setEditorText(text);
+    setEditorStatus('editing');
+    setShowEditConfirm(false);
+
+    if (editorDebounceRef.current) clearTimeout(editorDebounceRef.current);
+    editorDebounceRef.current = setTimeout(() => {
+      applyEditorChanges(text);
+    }, 400);
+  };
+
+  const handleEditConfirmApply = () => {
+    applyEditorChanges(editorText, true);
+  };
+
+  const handleEditConfirmCancel = () => {
+    const qs = getQuickSpin();
+    setEditorText(qs.items.map(i => i.name).join('\n'));
+    setShowEditConfirm(false);
+    setEditorStatus('idle');
   };
 
   // Export / Import
@@ -196,6 +333,8 @@ function App() {
           importData(reader.result as string);
           refresh();
           setMode('quick');
+          setUndoStack([]);
+          setLastWinner(null);
           alert('Data imported successfully!');
         } catch {
           alert('Invalid backup file.');
@@ -231,12 +370,6 @@ function App() {
           )}
         </select>
 
-        {hasPicked && (
-          <button className="btn btn-secondary btn-sm" onClick={handleReset}>
-            Reset All
-          </button>
-        )}
-
         <div className="header-spacer" />
 
         <button className="btn btn-nav" onClick={() => setShowClasses(true)}>Classes</button>
@@ -257,44 +390,38 @@ function App() {
 
       {/* ─── Picker Layout (always visible) ─── */}
       <main className="picker-layout">
-        <div className="left-panel">
-          <ListPanel
-            title="To Pick"
-            items={pickableNames}
-            kind="pickable"
-            onRemove={handleRemove}
+        <ListPanel
+          title="Eligible"
+          items={eligibleNames}
+          kind="eligible"
+          onRemove={handleRemove}
+          headerAction={
+            isQuick ? (
+              <button className="btn btn-secondary-dark btn-sm edit-btn" onClick={openEditor}>
+                &#9998; Edit
+              </button>
+            ) : undefined
+          }
+        />
+
+        <div className="center-column">
+          <SpinnerWheel
+            names={eligibleNames}
+            onSpinComplete={handleSpinComplete}
+            spinning={spinning}
+            onSpinStart={handleSpinStart}
+            targetId={targetId}
           />
-          {isQuick && (
-            <div className="inline-editor">
-              {showEditor ? (
-                <>
-                  <textarea
-                    value={editorText}
-                    onChange={e => setEditorText(e.target.value)}
-                    placeholder="One name per line, or comma-separated"
-                    rows={6}
-                  />
-                  <div className="inline-editor-actions">
-                    <button className="btn btn-primary btn-sm" onClick={saveEditor}>Update Names</button>
-                    <button className="btn btn-secondary-dark btn-sm" onClick={() => setShowEditor(false)}>Cancel</button>
-                  </div>
-                </>
-              ) : (
-                <button className="btn btn-secondary-dark btn-sm edit-names-btn" onClick={openEditor}>
-                  Edit Names
-                </button>
-              )}
-            </div>
+
+          {lastWinner && !spinning && (
+            <LastWinner
+              record={lastWinner}
+              onUndo={handleUndo}
+              onReturn={handleReturnWinner}
+              mode={currentMode}
+            />
           )}
         </div>
-
-        <SpinnerWheel
-          names={pickableNames}
-          onSpinComplete={handleSpinComplete}
-          spinning={spinning}
-          onSpinStart={handleSpinStart}
-          targetId={targetId}
-        />
 
         <ListPanel
           title="Picked"
@@ -303,6 +430,50 @@ function App() {
           onMoveBack={handleMoveBack}
         />
       </main>
+
+      {/* ─── Control Bar ─── */}
+      <ControlBar
+        mode={currentMode}
+        onModeChange={handleModeChange}
+        onResetRound={handleResetRound}
+        onUndo={handleUndo}
+        canUndo={undoStack.length > 0}
+        hasPicked={hasPicked}
+      />
+
+      {/* ─── Edit Drawer (Quick Spin only) ─── */}
+      {showEditor && (
+        <div className="drawer-backdrop" onClick={() => setShowEditor(false)}>
+          <div className="drawer-panel" onClick={e => e.stopPropagation()}>
+            <div className="drawer-header">
+              <h2>Edit Names</h2>
+              <button className="btn-icon modal-close" onClick={() => setShowEditor(false)}>&times;</button>
+            </div>
+            <div className="drawer-body">
+              <textarea
+                className="editor-textarea"
+                value={editorText}
+                onChange={e => handleEditorChange(e.target.value)}
+                placeholder="One name per line"
+                rows={12}
+              />
+              <div className="editor-status">
+                {editorStatus === 'editing' && <span className="status-editing">Editing...</span>}
+                {editorStatus === 'applied' && <span className="status-applied">&#10003; Applied</span>}
+              </div>
+              {showEditConfirm && (
+                <div className="edit-confirm-bar">
+                  <span>List changed — Apply and reset round?</span>
+                  <div className="edit-confirm-actions">
+                    <button className="btn btn-primary btn-sm" onClick={handleEditConfirmApply}>Apply + Reset</button>
+                    <button className="btn btn-secondary-dark btn-sm" onClick={handleEditConfirmCancel}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Modals ─── */}
       {showClasses && (
