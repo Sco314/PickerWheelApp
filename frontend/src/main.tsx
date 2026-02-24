@@ -1,45 +1,70 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import ClassManager from './components/ClassManager';
 import ListPanel from './components/ListPanel';
+import Modal from './components/Modal';
 import ProjectManager from './components/ProjectManager';
 import SpinnerWheel from './components/SpinnerWheel';
 import {
   exportData,
   getProject,
   getProjects,
+  getQuickSpin,
   importData,
   moveBackToPickable,
+  quickSpinMoveBack,
+  quickSpinPick,
+  quickSpinRemove,
+  quickSpinReset,
   removeFromPickable,
   resetProject,
   resolveNames,
+  resolveQuickSpinNames,
+  setQuickSpinNames,
   spinPick,
 } from './services/storage';
 import './styles/app.css';
 
-type View = 'picker' | 'classes' | 'projects';
+type Mode = 'quick' | string; // 'quick' or a project ID
 
 function App() {
-  const [view, setView] = useState<View>('picker');
-  const [projectId, setProjectId] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>('quick');
   const [spinning, setSpinning] = useState(false);
   const [targetId, setTargetId] = useState<string | null>(null);
   const [, setTick] = useState(0);
 
+  // Modal states
+  const [showClasses, setShowClasses] = useState(false);
+  const [showProjects, setShowProjects] = useState(false);
+
+  // Gear menu
+  const [showGear, setShowGear] = useState(false);
+  const gearRef = useRef<HTMLDivElement>(null);
+
+  // Inline name editor for quick spin
+  const [showEditor, setShowEditor] = useState(false);
+  const [editorText, setEditorText] = useState('');
+
   const refresh = () => setTick(t => t + 1);
 
-  // Hash-based routing
+  // Close gear menu on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (gearRef.current && !gearRef.current.contains(e.target as Node)) {
+        setShowGear(false);
+      }
+    }
+    if (showGear) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showGear]);
+
+  // Hash-based routing for deep links
   useEffect(() => {
     function handleHash() {
       const hash = window.location.hash.replace('#', '');
       if (hash.startsWith('/project/')) {
         const id = hash.replace('/project/', '');
-        setProjectId(id);
-        setView('picker');
-      } else if (hash === '/classes') {
-        setView('classes');
-      } else if (hash === '/projects') {
-        setView('projects');
+        setMode(id);
       }
     }
     handleHash();
@@ -47,73 +72,105 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
 
-  // Persist last project in URL
+  // Load last mode on mount
   useEffect(() => {
-    if (projectId) {
-      localStorage.setItem('lastProjectId', projectId);
-      window.location.hash = `/project/${projectId}`;
-    }
-  }, [projectId]);
-
-  // Load last project on mount if no hash route
-  useEffect(() => {
-    if (!projectId) {
-      const saved = localStorage.getItem('lastProjectId');
-      if (saved && getProject(saved)) {
-        setProjectId(saved);
+    if (mode === 'quick') {
+      const saved = localStorage.getItem('lastMode');
+      if (saved && saved !== 'quick' && getProject(saved)) {
+        setMode(saved);
       }
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const project = projectId ? getProject(projectId) : null;
-  const pickableNames = project ? resolveNames(project.classId, project.pickable) : [];
-  const pickedNames = project ? resolveNames(project.classId, project.picked) : [];
+  // Persist mode
+  useEffect(() => {
+    localStorage.setItem('lastMode', mode);
+    if (mode !== 'quick') {
+      window.location.hash = `/project/${mode}`;
+    } else {
+      if (window.location.hash) window.location.hash = '';
+    }
+  }, [mode]);
 
-  const navigate = (v: string) => {
-    setView(v as View);
-    if (v === 'classes') window.location.hash = '/classes';
-    else if (v === 'projects') window.location.hash = '/projects';
-    else if (v === 'picker' && projectId) window.location.hash = `/project/${projectId}`;
-  };
+  // Derive display data based on mode
+  const isQuick = mode === 'quick';
+  const project = !isQuick ? getProject(mode) : null;
 
-  const selectProject = (id: string) => {
-    setProjectId(id);
-    setView('picker');
-  };
+  let pickableNames: { id: string; name: string }[] = [];
+  let pickedNames: { id: string; name: string }[] = [];
 
+  if (isQuick) {
+    const qs = getQuickSpin();
+    pickableNames = resolveQuickSpinNames(qs.pickable);
+    pickedNames = resolveQuickSpinNames(qs.picked);
+  } else if (project) {
+    pickableNames = resolveNames(project.classId, project.pickable);
+    pickedNames = resolveNames(project.classId, project.picked);
+  }
+
+  // Spin
   const handleSpinStart = useCallback(() => {
-    if (!projectId || spinning) return;
-    const winnerId = spinPick(projectId);
+    if (spinning) return;
+    let winnerId: string | null;
+    if (isQuick) {
+      winnerId = quickSpinPick();
+    } else {
+      winnerId = spinPick(mode);
+    }
     if (!winnerId) return;
     setTargetId(winnerId);
     setSpinning(true);
-  }, [projectId, spinning]);
+  }, [mode, spinning, isQuick]);
 
   const handleSpinComplete = useCallback(() => {
     setSpinning(false);
     refresh();
   }, []);
 
+  // Reset
   const handleReset = () => {
-    if (!projectId) return;
-    if (confirm('Move all picked students back to the pickable list?')) {
-      resetProject(projectId);
+    if (confirm('Move all picked back to the pickable list?')) {
+      if (isQuick) quickSpinReset();
+      else resetProject(mode);
       refresh();
     }
   };
 
-  const handleMoveBack = (studentId: string) => {
-    if (!projectId) return;
-    moveBackToPickable(projectId, studentId);
+  // Move back
+  const handleMoveBack = (id: string) => {
+    if (isQuick) quickSpinMoveBack(id);
+    else moveBackToPickable(mode, id);
     refresh();
   };
 
-  const handleRemoveFromPickable = (studentId: string) => {
-    if (!projectId) return;
-    removeFromPickable(projectId, studentId);
+  // Remove from pickable
+  const handleRemove = (id: string) => {
+    if (isQuick) quickSpinRemove(id);
+    else removeFromPickable(mode, id);
     refresh();
   };
 
+  // Select project (from ProjectManager modal)
+  const selectProject = (id: string) => {
+    setMode(id);
+    setShowProjects(false);
+  };
+
+  // Quick spin editor
+  const openEditor = () => {
+    const qs = getQuickSpin();
+    setEditorText(qs.items.map(i => i.name).join('\n'));
+    setShowEditor(true);
+  };
+
+  const saveEditor = () => {
+    const names = editorText.split(/[,\n]/).map(n => n.trim()).filter(Boolean);
+    setQuickSpinNames(names);
+    setShowEditor(false);
+    refresh();
+  };
+
+  // Export / Import
   const handleExport = () => {
     const json = exportData();
     const blob = new Blob([json], { type: 'application/json' });
@@ -123,6 +180,7 @@ function App() {
     a.download = 'pickerwheel-backup.json';
     a.click();
     URL.revokeObjectURL(url);
+    setShowGear(false);
   };
 
   const handleImport = () => {
@@ -137,6 +195,7 @@ function App() {
         try {
           importData(reader.result as string);
           refresh();
+          setMode('quick');
           alert('Data imported successfully!');
         } catch {
           alert('Invalid backup file.');
@@ -145,88 +204,120 @@ function App() {
       reader.readAsText(file);
     };
     input.click();
+    setShowGear(false);
   };
 
   const allProjects = getProjects();
+  const hasPicked = pickedNames.length > 0;
 
-  // Nav bar (shared across views)
-  const header = (
-    <header className="app-header">
-      <h1 onClick={() => navigate('picker')} style={{ cursor: 'pointer' }}>PickerWheel</h1>
-      <nav>
-        <button className={`btn btn-nav${view === 'picker' ? ' active' : ''}`} onClick={() => navigate('picker')}>Picker</button>
-        <button className={`btn btn-nav${view === 'classes' ? ' active' : ''}`} onClick={() => navigate('classes')}>Classes</button>
-        <button className={`btn btn-nav${view === 'projects' ? ' active' : ''}`} onClick={() => navigate('projects')}>Projects</button>
-      </nav>
-      {view === 'picker' && (
-        <div className="header-project-select">
-          <select
-            value={projectId ?? ''}
-            onChange={e => selectProject(e.target.value)}
-          >
-            <option value="" disabled>Select a project</option>
-            {allProjects.map(p => (
-              <option key={p.id} value={p.id}>{p.title}</option>
-            ))}
-          </select>
-          {project && (
-            <button className="btn btn-secondary btn-sm" onClick={handleReset} title="Reset all picked back to pickable">
-              Reset All
-            </button>
-          )}
-        </div>
-      )}
-      <div className="header-tools">
-        <button className="btn-icon" title="Export data" onClick={handleExport}>&#128190;</button>
-        <button className="btn-icon" title="Import data" onClick={handleImport}>&#128194;</button>
-      </div>
-    </header>
-  );
-
-  if (view === 'classes') {
-    return <div className="app">{header}<ClassManager onNavigate={navigate} /></div>;
-  }
-
-  if (view === 'projects') {
-    return <div className="app">{header}<ProjectManager onSelectProject={selectProject} onNavigate={navigate} /></div>;
-  }
-
-  // Picker view
   return (
     <div className="app">
-      {header}
-      {!project ? (
-        <div className="no-project">
-          <h2>No project selected</h2>
-          <p>
-            <button className="btn btn-primary" onClick={() => navigate('classes')}>Create a class</button>
-            {' '}then{' '}
-            <button className="btn btn-primary" onClick={() => navigate('projects')}>create a project</button>
-            {' '}to get started.
-          </p>
+      {/* ─── Header ─── */}
+      <header className="app-header">
+        <h1>PickerWheel</h1>
+
+        <select
+          className="mode-select"
+          value={mode}
+          onChange={e => setMode(e.target.value)}
+        >
+          <option value="quick">Quick Spin</option>
+          {allProjects.length > 0 && (
+            <optgroup label="Saved Projects">
+              {allProjects.map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+
+        {hasPicked && (
+          <button className="btn btn-secondary btn-sm" onClick={handleReset}>
+            Reset All
+          </button>
+        )}
+
+        <div className="header-spacer" />
+
+        <button className="btn btn-nav" onClick={() => setShowClasses(true)}>Classes</button>
+        <button className="btn btn-nav" onClick={() => setShowProjects(true)}>Projects</button>
+
+        <div className="gear-wrapper" ref={gearRef}>
+          <button className="btn-icon gear-btn" onClick={() => setShowGear(!showGear)} title="Settings">
+            &#9881;
+          </button>
+          {showGear && (
+            <div className="gear-dropdown">
+              <button onClick={handleExport}>Export Data</button>
+              <button onClick={handleImport}>Import Data</button>
+            </div>
+          )}
         </div>
-      ) : (
-        <main className="picker-layout">
+      </header>
+
+      {/* ─── Picker Layout (always visible) ─── */}
+      <main className="picker-layout">
+        <div className="left-panel">
           <ListPanel
             title="To Pick"
             items={pickableNames}
             kind="pickable"
-            onRemove={handleRemoveFromPickable}
+            onRemove={handleRemove}
           />
-          <SpinnerWheel
-            names={pickableNames}
-            onSpinComplete={handleSpinComplete}
-            spinning={spinning}
-            onSpinStart={handleSpinStart}
-            targetId={targetId}
+          {isQuick && (
+            <div className="inline-editor">
+              {showEditor ? (
+                <>
+                  <textarea
+                    value={editorText}
+                    onChange={e => setEditorText(e.target.value)}
+                    placeholder="One name per line, or comma-separated"
+                    rows={6}
+                  />
+                  <div className="inline-editor-actions">
+                    <button className="btn btn-primary btn-sm" onClick={saveEditor}>Update Names</button>
+                    <button className="btn btn-secondary-dark btn-sm" onClick={() => setShowEditor(false)}>Cancel</button>
+                  </div>
+                </>
+              ) : (
+                <button className="btn btn-secondary-dark btn-sm edit-names-btn" onClick={openEditor}>
+                  Edit Names
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <SpinnerWheel
+          names={pickableNames}
+          onSpinComplete={handleSpinComplete}
+          spinning={spinning}
+          onSpinStart={handleSpinStart}
+          targetId={targetId}
+        />
+
+        <ListPanel
+          title="Picked"
+          items={pickedNames}
+          kind="picked"
+          onMoveBack={handleMoveBack}
+        />
+      </main>
+
+      {/* ─── Modals ─── */}
+      {showClasses && (
+        <Modal title="My Classes" onClose={() => { setShowClasses(false); refresh(); }}>
+          <ClassManager />
+        </Modal>
+      )}
+
+      {showProjects && (
+        <Modal title="Projects / Assignments" onClose={() => { setShowProjects(false); refresh(); }}>
+          <ProjectManager
+            onSelectProject={selectProject}
+            onOpenClasses={() => { setShowProjects(false); setShowClasses(true); }}
           />
-          <ListPanel
-            title="Picked"
-            items={pickedNames}
-            kind="picked"
-            onMoveBack={handleMoveBack}
-          />
-        </main>
+        </Modal>
       )}
     </div>
   );

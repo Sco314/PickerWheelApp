@@ -19,39 +19,31 @@ body {
 .app-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1.25rem;
+  gap: 0.75rem;
+  padding: 0.6rem 1.25rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
   flex-wrap: wrap;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 .app-header h1 {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 700;
   letter-spacing: -0.5px;
   white-space: nowrap;
 }
-.app-header nav {
-  display: flex;
-  gap: 0.25rem;
-}
-.header-project-select {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
-}
-.header-project-select select {
+.header-spacer { flex: 1; }
+
+/* Mode selector dropdown */
+.mode-select {
   padding: 0.35rem 0.5rem;
   border-radius: 6px;
   border: none;
   font-size: 0.9rem;
+  font-weight: 600;
   max-width: 220px;
-}
-.header-tools {
-  display: flex;
-  gap: 0.25rem;
+  background: rgba(255,255,255,0.9);
+  color: #333;
 }
 
 /* ─── Buttons ───────────────────────────────────────── */
@@ -70,30 +62,23 @@ body {
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.btn-primary {
-  background: #667eea;
-  color: #fff;
-}
+.btn-primary { background: #667eea; color: #fff; }
 .btn-primary:hover:not(:disabled) { background: #5a6fd6; }
 
-.btn-secondary {
-  background: rgba(255,255,255,0.15);
-  color: #fff;
-}
+.btn-secondary { background: rgba(255,255,255,0.15); color: #fff; }
 .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.25); }
+
+.btn-secondary-dark { background: #e0e0e0; color: #333; }
+.btn-secondary-dark:hover:not(:disabled) { background: #d0d0d0; }
 
 .btn-nav {
   background: transparent;
-  color: rgba(255,255,255,0.7);
+  color: rgba(255,255,255,0.75);
   padding: 0.4rem 0.75rem;
   border-radius: 6px;
   font-size: 0.85rem;
 }
-.btn-nav:hover { color: #fff; background: rgba(255,255,255,0.1); }
-.btn-nav.active {
-  color: #fff;
-  background: rgba(255,255,255,0.2);
-}
+.btn-nav:hover { color: #fff; background: rgba(255,255,255,0.12); }
 
 .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
 
@@ -128,6 +113,40 @@ body {
   padding: 0;
 }
 
+/* ─── Gear / Settings Menu ──────────────────────────── */
+.gear-wrapper {
+  position: relative;
+}
+.gear-btn {
+  font-size: 1.3rem;
+}
+.gear-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.35rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  min-width: 160px;
+  z-index: 100;
+  overflow: hidden;
+}
+.gear-dropdown button {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #333;
+}
+.gear-dropdown button:hover {
+  background: #f0f2f5;
+}
+
 /* ─── Picker Layout (3-column) ──────────────────────── */
 .picker-layout {
   display: grid;
@@ -138,6 +157,38 @@ body {
   align-items: start;
   max-width: 1400px;
   margin: 0 auto;
+  width: 100%;
+}
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ─── Inline Name Editor ────────────────────────────── */
+.inline-editor {
+  background: #fff;
+  border-radius: 12px;
+  padding: 0.75rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.inline-editor textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+.inline-editor textarea:focus { border-color: #667eea; }
+.inline-editor-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.edit-names-btn {
   width: 100%;
 }
 
@@ -156,14 +207,8 @@ body {
   margin-bottom: 0.75rem;
   color: #444;
 }
-.list-count {
-  font-weight: 400;
-  color: #888;
-  font-size: 0.85rem;
-}
-.name-list {
-  list-style: none;
-}
+.list-count { font-weight: 400; color: #888; font-size: 0.85rem; }
+.name-list { list-style: none; }
 .name-item {
   display: flex;
   align-items: center;
@@ -173,10 +218,7 @@ body {
   transition: background 0.15s;
 }
 .name-item:hover { background: #f5f5f5; }
-.name-text {
-  flex: 1;
-  font-size: 0.9rem;
-}
+.name-text { flex: 1; font-size: 0.9rem; }
 .name-actions {
   display: flex;
   gap: 0.15rem;
@@ -233,34 +275,60 @@ body {
   to { opacity: 1; transform: scale(1); }
 }
 
-/* ─── No Project State ──────────────────────────────── */
-.no-project {
+/* ─── Modal ─────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex: 1;
-  gap: 1rem;
-  padding: 3rem;
-  text-align: center;
+  z-index: 200;
+  animation: fadeIn 0.15s ease;
 }
-.no-project h2 { color: #666; font-weight: 500; }
-.no-project p { color: #888; }
-
-/* ─── Class Manager ─────────────────────────────────── */
-.class-manager, .project-manager {
-  max-width: 700px;
-  margin: 1rem auto;
-  padding: 0 1rem;
-  width: 100%;
+.modal-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.2s ease;
 }
-.class-manager-header {
+.modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #eee;
 }
-.class-manager-header h2 { font-size: 1.2rem; }
+.modal-header h2 { font-size: 1.15rem; font-weight: 700; }
+.modal-close {
+  font-size: 1.4rem;
+  color: #999;
+}
+.modal-close:hover { color: #333; }
+.modal-body {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Class Manager (inside modal) ──────────────────── */
+.class-manager, .project-manager {
+  width: 100%;
+}
 
 .create-class-form, .create-project-form {
   display: flex;
@@ -287,9 +355,8 @@ body {
   gap: 0.75rem;
 }
 .class-card, .project-card {
-  background: #fff;
+  background: #f8f8f8;
   border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
   overflow: hidden;
 }
 .class-card-header {
@@ -300,7 +367,7 @@ body {
   cursor: pointer;
   transition: background 0.15s;
 }
-.class-card-header:hover { background: #f8f8f8; }
+.class-card-header:hover { background: #f0f0f0; }
 .expand-icon { font-size: 0.7rem; color: #999; width: 1rem; text-align: center; }
 .class-name { font-weight: 600; flex: 1; }
 .student-count { font-size: 0.8rem; color: #888; }
@@ -329,9 +396,7 @@ body {
 }
 .add-students-form textarea:focus { border-color: #667eea; }
 
-.student-list {
-  list-style: none;
-}
+.student-list { list-style: none; }
 .student-item {
   display: flex;
   align-items: center;
@@ -340,7 +405,7 @@ body {
   border-radius: 6px;
   transition: background 0.15s;
 }
-.student-item:hover { background: #f5f5f5; }
+.student-item:hover { background: #eee; }
 .student-name {
   flex: 1;
   cursor: pointer;
@@ -384,17 +449,15 @@ body {
     grid-template-columns: 1fr;
     gap: 0.75rem;
   }
-  .picker-layout > .spinner-container {
-    order: -1;
-  }
+  .picker-layout > .spinner-container { order: -1; }
   .list-panel { max-height: 300px; }
   .app-header { gap: 0.5rem; }
-  .header-project-select { margin-left: 0; width: 100%; }
-  .header-project-select select { flex: 1; }
+  .mode-select { max-width: 160px; }
 }
 
 @media (max-width: 600px) {
   .app-header h1 { font-size: 1.1rem; }
   .create-class-form, .create-project-form { flex-direction: column; }
   .spinner-canvas { max-width: 300px; }
+  .modal-card { width: 95%; max-height: 90vh; }
 }

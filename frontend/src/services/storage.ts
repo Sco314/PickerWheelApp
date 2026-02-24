@@ -23,21 +23,47 @@ export interface Project {
   createdAt: string;
 }
 
+export interface QuickSpinItem {
+  id: string;
+  name: string;
+}
+
+export interface QuickSpin {
+  items: QuickSpinItem[];
+  pickable: string[]; // item IDs
+  picked: string[];   // item IDs
+}
+
 export interface AppData {
   classes: Class[];
   projects: Project[];
+  quickSpin?: QuickSpin;
 }
 
 function genId(): string {
   return crypto.randomUUID();
 }
 
+const DEFAULT_QUICK_SPIN_NAMES = ['Group 1', 'Group 2', 'Group 3', 'Group 4'];
+
+function makeQuickSpin(names: string[]): QuickSpin {
+  const items = names.map(name => ({ id: genId(), name }));
+  return { items, pickable: items.map(i => i.id), picked: [] };
+}
+
 function load(): AppData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as AppData;
+    if (raw) {
+      const data = JSON.parse(raw) as AppData;
+      // Ensure quickSpin exists (migration from older data)
+      if (!data.quickSpin) {
+        data.quickSpin = makeQuickSpin(DEFAULT_QUICK_SPIN_NAMES);
+      }
+      return data;
+    }
   } catch { /* corrupted data — start fresh */ }
-  return { classes: [], projects: [] };
+  return { classes: [], projects: [], quickSpin: makeQuickSpin(DEFAULT_QUICK_SPIN_NAMES) };
 }
 
 function save(data: AppData): void {
@@ -204,6 +230,64 @@ export function removeFromPickable(projectId: string, studentId: string): void {
   if (!project) return;
   project.pickable = project.pickable.filter(id => id !== studentId);
   save(data);
+}
+
+// ─── Quick Spin ──────────────────────────────────────────
+
+export function getQuickSpin(): QuickSpin {
+  return load().quickSpin!;
+}
+
+export function setQuickSpinNames(names: string[]): void {
+  const data = load();
+  data.quickSpin = makeQuickSpin(names.filter(n => n.trim()));
+  save(data);
+}
+
+export function quickSpinPick(): string | null {
+  const data = load();
+  const qs = data.quickSpin!;
+  if (qs.pickable.length === 0) return null;
+  const idx = Math.floor(Math.random() * qs.pickable.length);
+  const [picked] = qs.pickable.splice(idx, 1);
+  qs.picked.push(picked);
+  save(data);
+  return picked;
+}
+
+export function quickSpinReset(): void {
+  const data = load();
+  const qs = data.quickSpin!;
+  qs.pickable = [...qs.pickable, ...qs.picked];
+  qs.picked = [];
+  save(data);
+}
+
+export function quickSpinMoveBack(itemId: string): void {
+  const data = load();
+  const qs = data.quickSpin!;
+  qs.picked = qs.picked.filter(id => id !== itemId);
+  if (!qs.pickable.includes(itemId)) {
+    qs.pickable.push(itemId);
+  }
+  save(data);
+}
+
+export function quickSpinRemove(itemId: string): void {
+  const data = load();
+  const qs = data.quickSpin!;
+  qs.pickable = qs.pickable.filter(id => id !== itemId);
+  qs.picked = qs.picked.filter(id => id !== itemId);
+  qs.items = qs.items.filter(i => i.id !== itemId);
+  save(data);
+}
+
+export function resolveQuickSpinNames(ids: string[]): { id: string; name: string }[] {
+  const qs = getQuickSpin();
+  return ids.map(id => {
+    const item = qs.items.find(i => i.id === id);
+    return { id, name: item?.name ?? '(removed)' };
+  });
 }
 
 // ─── Helpers ─────────────────────────────────────────────

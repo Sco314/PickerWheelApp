@@ -9,10 +9,10 @@ import {
 
 type Props = {
   onSelectProject: (projectId: string) => void;
-  onNavigate: (view: string) => void;
+  onOpenClasses: () => void;
 };
 
-export default function ProjectManager({ onSelectProject, onNavigate }: Props) {
+export default function ProjectManager({ onSelectProject, onOpenClasses }: Props) {
   const [classes] = useState<Class[]>(getClasses);
   const [projects, setProjects] = useState<Project[]>(getProjects);
   const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id ?? '');
@@ -40,13 +40,6 @@ export default function ProjectManager({ onSelectProject, onNavigate }: Props) {
 
   return (
     <div className="project-manager">
-      <div className="class-manager-header">
-        <h2>Projects / Assignments</h2>
-        <button className="btn btn-secondary" onClick={() => onNavigate('picker')}>
-          &larr; Back to Picker
-        </button>
-      </div>
-
       <div className="create-project-form">
         <select value={selectedClassId} onChange={e => setSelectedClassId(e.target.value)}>
           <option value="" disabled>Select a class</option>
@@ -69,7 +62,7 @@ export default function ProjectManager({ onSelectProject, onNavigate }: Props) {
       {classes.length === 0 && (
         <p className="empty-state">
           No classes yet.{' '}
-          <button className="btn-link" onClick={() => onNavigate('classes')}>Create a class first</button>.
+          <button className="btn-link" onClick={onOpenClasses}>Create a class first</button>.
         </p>
       )}
 

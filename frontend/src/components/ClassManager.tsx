@@ -10,11 +10,7 @@ import {
   updateStudentName,
 } from '../services/storage';
 
-type Props = {
-  onNavigate: (view: string) => void;
-};
-
-export default function ClassManager({ onNavigate }: Props) {
+export default function ClassManager() {
   const [classes, setClasses] = useState<Class[]>(getClasses);
   const [newClassName, setNewClassName] = useState('');
   const [expandedClassId, setExpandedClassId] = useState<string | null>(null);
@@ -72,12 +68,7 @@ export default function ClassManager({ onNavigate }: Props) {
 
   return (
     <div className="class-manager">
-      <div className="class-manager-header">
-        <h2>My Classes</h2>
-        <button className="btn btn-secondary" onClick={() => onNavigate('picker')}>
-          &larr; Back to Picker
-        </button>
-      </div>
+      {/* header provided by Modal wrapper */}
 
       <div className="create-class-form">
         <input
