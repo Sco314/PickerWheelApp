@@ -55,6 +55,7 @@ function App() {
   const [spinning, setSpinning] = useState(false);
   const [targetId, setTargetId] = useState<string | null>(null);
   const [pendingSpin, setPendingSpin] = useState<SpinRecord | null>(null);
+  const pendingSpinRef = useRef<SpinRecord | null>(null);
   const [, setTick] = useState(0);
 
   // Draft session state (before first spin persists it)
@@ -233,6 +234,7 @@ function App() {
 
     if (!record) return;
 
+    pendingSpinRef.current = record;
     setPendingSpin(record);
     setTargetId(record.entryId);
     setSpinning(true);
@@ -243,20 +245,21 @@ function App() {
   const handleSpinComplete = useCallback(() => {
     setSpinning(false);
 
-    if (!pendingSpin) {
+    const spin = pendingSpinRef.current;
+    if (!spin) {
       refresh();
       return;
     }
 
     if (isQuick) {
-      applyQuickSpinPick(pendingSpin);
+      applyQuickSpinPick(spin);
     } else if (isDraft && classId) {
       // Apply to draft state in-memory
-      const newEligible = pendingSpin.removedFromPool
-        ? draftEligible.filter(id => id !== pendingSpin.entryId)
+      const newEligible = spin.removedFromPool
+        ? draftEligible.filter(id => id !== spin.entryId)
         : [...draftEligible];
-      const newPicked = [...draftPicked, pendingSpin.entryId];
-      const newHistory = [...draftHistory, pendingSpin];
+      const newPicked = [...draftPicked, spin.entryId];
+      const newHistory = [...draftHistory, spin];
 
       // Persist as session on first spin
       const newSession = createSessionWithState(
@@ -268,12 +271,13 @@ function App() {
       setDraftPicked([]);
       setDraftHistory([]);
     } else if (sessionId) {
-      applySessionPick(sessionId, pendingSpin);
+      applySessionPick(sessionId, spin);
     }
 
+    pendingSpinRef.current = null;
     setPendingSpin(null);
     refresh();
-  }, [pendingSpin, isQuick, isDraft, classId, sessionId, draftEligible, draftPicked, draftHistory, draftMode]);
+  }, [isQuick, isDraft, classId, sessionId, draftEligible, draftPicked, draftHistory, draftMode]);
 
   // ─── Undo ─────────────────────────────────────────────
   const handleUndo = () => {

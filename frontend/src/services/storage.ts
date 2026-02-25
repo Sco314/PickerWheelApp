@@ -544,9 +544,9 @@ export function exportData(): string {
 
 export function importData(json: string): void {
   let data = JSON.parse(json) as AppData;
-  if (!Array.isArray(data.classes)) {
+  data = migrateData(data);
+  if (!Array.isArray(data.classes) || !Array.isArray(data.sessions)) {
     throw new Error('Invalid data format');
   }
-  data = migrateData(data);
   save(data);
 }
