@@ -148,15 +148,90 @@ body {
   background: #f0f2f5;
 }
 
+/* ─── Class Selector (header) ────────────────────────── */
+.class-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.class-selector-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.session-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.session-load-wrapper {
+  position: relative;
+}
+.session-load-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.35rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  min-width: 240px;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 100;
+}
+.session-load-empty {
+  padding: 0.75rem 1rem;
+  color: #999;
+  font-size: 0.85rem;
+}
+.session-load-item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: #333;
+}
+.session-load-item:hover {
+  background: #f0f2f5;
+}
+.session-load-item.active {
+  background: #eef0ff;
+  font-weight: 600;
+  color: #667eea;
+}
+.session-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.session-status {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.7);
+}
+.session-rename-btn {
+  width: 22px;
+  height: 22px;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.6);
+}
+.session-rename-btn:hover {
+  color: #fff;
+}
+
 /* ─── Picker Layout (3-column) ──────────────────────── */
 .picker-layout {
   display: grid;
-  grid-template-columns: 1fr 1.5fr 1fr;
+  grid-template-columns: 1fr 2fr 1fr;
   gap: 1rem;
   padding: 1rem;
   flex: 1;
   align-items: start;
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   width: 100%;
 }
@@ -234,7 +309,7 @@ body {
 }
 .spinner-canvas {
   width: 100%;
-  max-width: 420px;
+  max-width: 650px;
   aspect-ratio: 1;
 }
 .spin-button {
@@ -457,16 +532,16 @@ body {
 }
 
 /* ─── Class Manager (inside modal) ──────────────────── */
-.class-manager, .project-manager {
+.class-manager {
   width: 100%;
 }
 
-.create-class-form, .create-project-form {
+.create-class-form {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
 }
-.create-class-form input, .create-project-form input, .create-project-form select {
+.create-class-form input {
   flex: 1;
   padding: 0.5rem 0.75rem;
   border: 2px solid #ddd;
@@ -475,17 +550,17 @@ body {
   outline: none;
   transition: border-color 0.2s;
 }
-.create-class-form input:focus, .create-project-form input:focus {
+.create-class-form input:focus {
   border-color: #667eea;
 }
 
 /* ─── Class Cards ───────────────────────────────────── */
-.class-list, .project-list {
+.class-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
-.class-card, .project-card {
+.class-card {
   background: #f8f8f8;
   border-radius: 10px;
   overflow: hidden;
@@ -554,18 +629,6 @@ body {
   outline: none;
 }
 
-/* ─── Project Cards ─────────────────────────────────── */
-.project-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-}
-.project-info { flex: 1; }
-.project-info strong { display: block; font-size: 0.95rem; }
-.project-meta { font-size: 0.8rem; color: #888; }
-.project-actions { display: flex; gap: 0.5rem; align-items: center; }
-
 /* ─── Empty States ──────────────────────────────────── */
 .empty-state {
   color: #999;
@@ -575,6 +638,13 @@ body {
 }
 
 /* ─── Responsive ────────────────────────────────────── */
+@media (max-width: 1200px) {
+  .picker-layout {
+    grid-template-columns: 1fr 1.5fr 1fr;
+  }
+  .spinner-canvas { max-width: 500px; }
+}
+
 @media (max-width: 900px) {
   .picker-layout {
     grid-template-columns: 1fr;
@@ -585,12 +655,14 @@ body {
   .app-header { gap: 0.5rem; }
   .mode-select { max-width: 160px; }
   .control-bar { gap: 0.5rem; }
+  .session-controls { gap: 0.25rem; }
+  .class-selector-row { flex-wrap: wrap; }
 }
 
 @media (max-width: 600px) {
   .app-header h1 { font-size: 1.1rem; }
-  .create-class-form, .create-project-form { flex-direction: column; }
-  .spinner-canvas { max-width: 300px; }
+  .create-class-form { flex-direction: column; }
+  .spinner-canvas { max-width: 90vw; }
   .modal-card { width: 95%; max-height: 90vh; }
   .drawer-panel { width: 100vw; }
 }

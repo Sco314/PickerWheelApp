@@ -19,6 +19,11 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const angleRef = useRef(0);
+  // Stable refs to prevent animation effect restart mid-spin
+  const onSpinCompleteRef = useRef(onSpinComplete);
+  onSpinCompleteRef.current = onSpinComplete;
+  const namesRef = useRef(names);
+  namesRef.current = names;
 
   const draw = useCallback((rotation: number) => {
     const canvas = canvasRef.current;
@@ -78,8 +83,8 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#333';
-      ctx.font = `bold ${Math.min(14, 200 / names.length)}px Arial`;
-      const maxTextWidth = radius - 25;
+      ctx.font = `bold ${Math.min(16, 300 / names.length)}px Arial`;
+      const maxTextWidth = radius - 30;
       let label = names[i].name;
       while (ctx.measureText(label).width > maxTextWidth && label.length > 1) {
         label = label.slice(0, -1);
@@ -91,7 +96,7 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
 
     // Center circle
     ctx.beginPath();
-    ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 25, 0, Math.PI * 2);
     ctx.fillStyle = '#fff';
     ctx.fill();
     ctx.strokeStyle = '#333';
@@ -113,18 +118,27 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
     ctx.stroke();
   }, [names]);
 
+  const drawRef = useRef(draw);
+  drawRef.current = draw;
+
+  // Redraw wheel when names change (non-animated)
   useEffect(() => {
     draw(angleRef.current);
   }, [draw]);
 
+  // Animation effect — depends ONLY on spinning + targetId.
+  // names/draw/onSpinComplete are read from refs to prevent restart mid-spin.
   useEffect(() => {
-    if (!spinning || names.length === 0 || !targetId) return;
+    if (!spinning || !targetId) return;
 
-    const targetIndex = names.findIndex(n => n.id === targetId);
+    const currentNames = namesRef.current;
+    const currentDraw = drawRef.current;
+    if (currentNames.length === 0) return;
+
+    const targetIndex = currentNames.findIndex(n => n.id === targetId);
     if (targetIndex === -1) return;
 
-    const sliceAngle = (Math.PI * 2) / names.length;
-    // Pointer is at angle 0 (right). Spin so target slice center aligns with pointer.
+    const sliceAngle = (Math.PI * 2) / currentNames.length;
     const extraSpins = 5 + Math.random() * 3;
     const targetAngle = -(targetIndex * sliceAngle + sliceAngle / 2) - extraSpins * Math.PI * 2;
 
@@ -144,12 +158,12 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
       const currentAngle = startAngle + totalRotation * eased;
 
       angleRef.current = currentAngle;
-      draw(currentAngle);
+      currentDraw(currentAngle);
 
       if (t < 1) {
         animRef.current = requestAnimationFrame(animate);
       } else {
-        onSpinComplete(names[targetIndex].id);
+        onSpinCompleteRef.current(currentNames[targetIndex].id);
       }
     }
 
@@ -158,7 +172,7 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
     return () => {
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };
-  }, [spinning, targetId, names, draw, onSpinComplete]);
+  }, [spinning, targetId]);
 
   return (
     <div className="spinner-container">
