@@ -6,10 +6,11 @@ type Props = {
   kind: 'eligible' | 'picked';
   onMoveBack?: (id: string) => void;
   onRemove?: (id: string) => void;
+  onResetRound?: () => void;
   headerAction?: React.ReactNode;
 };
 
-export default function ListPanel({ title, items, kind, onMoveBack, onRemove, headerAction }: Props) {
+export default function ListPanel({ title, items, kind, onMoveBack, onRemove, onResetRound, headerAction }: Props) {
   return (
     <div className={`list-panel list-panel-${kind}`}>
       <div className="list-panel-header">
@@ -17,9 +18,14 @@ export default function ListPanel({ title, items, kind, onMoveBack, onRemove, he
         {headerAction}
       </div>
       {items.length === 0 ? (
-        <p className="empty-state">
-          {kind === 'eligible' ? 'All entries picked!' : 'None picked yet'}
-        </p>
+        <div className="empty-state">
+          <p>{kind === 'eligible' ? 'All entries picked!' : 'None picked yet'}</p>
+          {kind === 'eligible' && onResetRound && (
+            <button className="btn btn-primary btn-sm" style={{ marginTop: '0.5rem' }} onClick={onResetRound}>
+              Reset Round
+            </button>
+          )}
+        </div>
       ) : (
         <ul className="name-list">
           {items.map((item, index) => (

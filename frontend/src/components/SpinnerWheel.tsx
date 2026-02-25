@@ -19,6 +19,9 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const angleRef = useRef(0);
+  // Stable ref for onSpinComplete to prevent effect restart mid-animation
+  const onSpinCompleteRef = useRef(onSpinComplete);
+  onSpinCompleteRef.current = onSpinComplete;
 
   const draw = useCallback((rotation: number) => {
     const canvas = canvasRef.current;
@@ -78,8 +81,8 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#333';
-      ctx.font = `bold ${Math.min(14, 200 / names.length)}px Arial`;
-      const maxTextWidth = radius - 25;
+      ctx.font = `bold ${Math.min(16, 300 / names.length)}px Arial`;
+      const maxTextWidth = radius - 30;
       let label = names[i].name;
       while (ctx.measureText(label).width > maxTextWidth && label.length > 1) {
         label = label.slice(0, -1);
@@ -91,7 +94,7 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
 
     // Center circle
     ctx.beginPath();
-    ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 25, 0, Math.PI * 2);
     ctx.fillStyle = '#fff';
     ctx.fill();
     ctx.strokeStyle = '#333';
@@ -149,7 +152,7 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
       if (t < 1) {
         animRef.current = requestAnimationFrame(animate);
       } else {
-        onSpinComplete(names[targetIndex].id);
+        onSpinCompleteRef.current(names[targetIndex].id);
       }
     }
 
@@ -158,7 +161,7 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
     return () => {
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };
-  }, [spinning, targetId, names, draw, onSpinComplete]);
+  }, [spinning, targetId, names, draw]); // onSpinComplete removed — using ref instead
 
   return (
     <div className="spinner-container">

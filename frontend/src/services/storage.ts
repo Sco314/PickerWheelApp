@@ -22,15 +22,16 @@ export interface SpinRecord {
   removedFromPool: boolean;
 }
 
-export interface Project {
+export interface Session {
   id: string;
   classId: string;
-  title: string;
+  name?: string;
   eligible: string[];    // student IDs in pool
   picked: string[];      // student IDs picked (ordered)
   history: SpinRecord[];
   mode: 'remove' | 'keep';
   createdAt: string;
+  lastSpinAt?: string;
 }
 
 export interface QuickSpinItem {
@@ -48,7 +49,7 @@ export interface QuickSpin {
 
 export interface AppData {
   classes: Class[];
-  projects: Project[];
+  sessions: Session[];
   quickSpin?: QuickSpin;
 }
 
@@ -63,19 +64,46 @@ function makeQuickSpin(names: string[]): QuickSpin {
   return { items, eligible: items.map(i => i.id), picked: [], history: [], mode: 'remove' };
 }
 
-// Migrate old data format (pickable → eligible, add history/mode)
+// Migrate old data formats
 function migrateData(data: AppData): AppData {
-  // Migrate projects
-  for (const project of data.projects) {
-    const p = project as unknown as Record<string, unknown>;
-    // Rename pickable → eligible
-    if ('pickable' in p && !('eligible' in p)) {
-      project.eligible = p.pickable as string[];
-      delete p.pickable;
-    }
-    if (!project.history) project.history = [];
-    if (!project.mode) project.mode = 'remove';
+  // Migrate projects → sessions
+  const raw = data as unknown as Record<string, unknown>;
+  if ('projects' in raw && !('sessions' in raw)) {
+    const projects = raw.projects as Array<Record<string, unknown>>;
+    (data as AppData).sessions = projects.map(p => ({
+      id: p.id as string,
+      classId: p.classId as string,
+      name: (p.title as string) || undefined,
+      eligible: (p.eligible ?? p.pickable ?? []) as string[],
+      picked: (p.picked ?? []) as string[],
+      history: (p.history ?? []) as SpinRecord[],
+      mode: (p.mode as 'remove' | 'keep') || 'remove',
+      createdAt: (p.createdAt as string) || new Date().toISOString(),
+      lastSpinAt: undefined,
+    }));
+    delete raw.projects;
   }
+
+  // Ensure sessions array exists
+  if (!data.sessions) data.sessions = [];
+
+  // Migrate individual sessions
+  for (const session of data.sessions) {
+    const s = session as unknown as Record<string, unknown>;
+    // Rename pickable → eligible
+    if ('pickable' in s && !('eligible' in s)) {
+      session.eligible = s.pickable as string[];
+      delete s.pickable;
+    }
+    // Rename title → name
+    if ('title' in s && !('name' in s)) {
+      session.name = s.title as string;
+      delete s.title;
+    }
+    if (!session.history) session.history = [];
+    if (!session.mode) session.mode = 'remove';
+  }
+
   // Migrate quickSpin
   if (data.quickSpin) {
     const qs = data.quickSpin as unknown as Record<string, unknown>;
@@ -101,7 +129,7 @@ function load(): AppData {
       return data;
     }
   } catch { /* corrupted data — start fresh */ }
-  return { classes: [], projects: [], quickSpin: makeQuickSpin(DEFAULT_QUICK_SPIN_NAMES) };
+  return { classes: [], sessions: [], quickSpin: makeQuickSpin(DEFAULT_QUICK_SPIN_NAMES) };
 }
 
 function save(data: AppData): void {
@@ -135,7 +163,7 @@ export function updateClassName(id: string, name: string): void {
 export function deleteClass(id: string): void {
   const data = load();
   data.classes = data.classes.filter(c => c.id !== id);
-  data.projects = data.projects.filter(p => p.classId !== id);
+  data.sessions = data.sessions.filter(s => s.classId !== id);
   save(data);
 }
 
@@ -181,143 +209,226 @@ export function deleteStudent(classId: string, studentId: string): void {
   const cls = data.classes.find(c => c.id === classId);
   if (!cls) return;
   cls.students = cls.students.filter(s => s.id !== studentId);
-  for (const project of data.projects) {
-    if (project.classId === classId) {
-      project.eligible = project.eligible.filter(id => id !== studentId);
-      project.picked = project.picked.filter(id => id !== studentId);
+  for (const session of data.sessions) {
+    if (session.classId === classId) {
+      session.eligible = session.eligible.filter(id => id !== studentId);
+      session.picked = session.picked.filter(id => id !== studentId);
     }
   }
   save(data);
 }
 
-// ─── Project CRUD ────────────────────────────────────────
+// ─── Session CRUD ────────────────────────────────────────
 
-export function getProjects(): Project[] {
-  return load().projects;
+export function getSessions(): Session[] {
+  return load().sessions;
 }
 
-export function getProjectsForClass(classId: string): Project[] {
-  return load().projects.filter(p => p.classId === classId);
+export function getSessionsForClass(classId: string, limit = 10): Session[] {
+  return load().sessions
+    .filter(s => s.classId === classId)
+    .sort((a, b) => {
+      const aTime = a.lastSpinAt || a.createdAt;
+      const bTime = b.lastSpinAt || b.createdAt;
+      return bTime.localeCompare(aTime);
+    })
+    .slice(0, limit);
 }
 
-export function getProject(id: string): Project | undefined {
-  return load().projects.find(p => p.id === id);
+export function getSession(id: string): Session | undefined {
+  return load().sessions.find(s => s.id === id);
 }
 
-export function createProject(classId: string, title: string): Project {
+export function getLatestSessionForClass(classId: string): Session | undefined {
+  return getSessionsForClass(classId, 1)[0];
+}
+
+export function createSessionWithState(
+  classId: string,
+  eligible: string[],
+  picked: string[],
+  history: SpinRecord[],
+  mode: 'remove' | 'keep',
+  name?: string,
+): Session {
   const data = load();
-  const cls = data.classes.find(c => c.id === classId);
-  if (!cls) throw new Error('Class not found');
-  const project: Project = {
+  const session: Session = {
     id: genId(),
     classId,
-    title,
-    eligible: cls.students.map(s => s.id),
-    picked: [],
-    history: [],
-    mode: 'remove',
+    name,
+    eligible,
+    picked,
+    history,
+    mode,
     createdAt: new Date().toISOString(),
+    lastSpinAt: history.length > 0 ? new Date().toISOString() : undefined,
   };
-  data.projects.push(project);
+  data.sessions.push(session);
   save(data);
-  return project;
+  return session;
 }
 
-export function deleteProject(id: string): void {
+export function deleteSession(id: string): void {
   const data = load();
-  data.projects = data.projects.filter(p => p.id !== id);
+  data.sessions = data.sessions.filter(s => s.id !== id);
   save(data);
 }
 
-// ─── Picker operations (Projects) ────────────────────────
-
-export function spinPick(projectId: string): SpinRecord | null {
+export function renameSession(id: string, name: string): void {
   const data = load();
-  const project = data.projects.find(p => p.id === projectId);
-  if (!project || project.eligible.length === 0) return null;
+  const session = data.sessions.find(s => s.id === id);
+  if (session) {
+    session.name = name || undefined;
+    save(data);
+  }
+}
 
-  const cls = data.classes.find(c => c.id === project.classId);
-  const idx = Math.floor(Math.random() * project.eligible.length);
-  const winnerId = project.eligible[idx];
+// ─── Deferred Spin (read-only pick + apply) ─────────────
+
+// Read-only: pick random eligible entry, return SpinRecord WITHOUT mutating storage
+export function pickRandomFromSession(sessionId: string): SpinRecord | null {
+  const data = load();
+  const session = data.sessions.find(s => s.id === sessionId);
+  if (!session || session.eligible.length === 0) return null;
+
+  const cls = data.classes.find(c => c.id === session.classId);
+  const idx = Math.floor(Math.random() * session.eligible.length);
+  const winnerId = session.eligible[idx];
   const winnerName = cls?.students.find(s => s.id === winnerId)?.name ?? '(unknown)';
 
-  const record: SpinRecord = {
+  return {
     entryId: winnerId,
     entryName: winnerName,
     timestamp: Date.now(),
-    removedFromPool: project.mode === 'remove',
+    removedFromPool: session.mode === 'remove',
   };
+}
 
-  if (project.mode === 'remove') {
-    project.eligible.splice(idx, 1);
+export function pickRandomFromQuickSpin(): SpinRecord | null {
+  const data = load();
+  const qs = data.quickSpin!;
+  if (qs.eligible.length === 0) return null;
+
+  const idx = Math.floor(Math.random() * qs.eligible.length);
+  const winnerId = qs.eligible[idx];
+  const winnerName = qs.items.find(i => i.id === winnerId)?.name ?? '(unknown)';
+
+  return {
+    entryId: winnerId,
+    entryName: winnerName,
+    timestamp: Date.now(),
+    removedFromPool: qs.mode === 'remove',
+  };
+}
+
+// Read-only: pick from a draft session (in-memory eligible list, class for names)
+export function pickRandomFromDraft(
+  classId: string,
+  eligible: string[],
+  mode: 'remove' | 'keep',
+): SpinRecord | null {
+  if (eligible.length === 0) return null;
+
+  const cls = getClass(classId);
+  const idx = Math.floor(Math.random() * eligible.length);
+  const winnerId = eligible[idx];
+  const winnerName = cls?.students.find(s => s.id === winnerId)?.name ?? '(unknown)';
+
+  return {
+    entryId: winnerId,
+    entryName: winnerName,
+    timestamp: Date.now(),
+    removedFromPool: mode === 'remove',
+  };
+}
+
+// Write: apply the pick AFTER animation completes
+export function applySessionPick(sessionId: string, record: SpinRecord): void {
+  const data = load();
+  const session = data.sessions.find(s => s.id === sessionId);
+  if (!session) return;
+
+  if (record.removedFromPool) {
+    session.eligible = session.eligible.filter(id => id !== record.entryId);
   }
-  project.picked.push(winnerId);
-  project.history.push(record);
-  save(data);
-  return record;
-}
-
-export function resetProject(projectId: string): void {
-  const data = load();
-  const project = data.projects.find(p => p.id === projectId);
-  if (!project) return;
-  project.eligible = [...project.eligible, ...project.picked.filter(id => !project.eligible.includes(id))];
-  project.picked = [];
-  project.history = [];
+  session.picked.push(record.entryId);
+  session.history.push(record);
+  session.lastSpinAt = new Date().toISOString();
   save(data);
 }
 
-export function moveBackToEligible(projectId: string, studentId: string): void {
+export function applyQuickSpinPick(record: SpinRecord): void {
   const data = load();
-  const project = data.projects.find(p => p.id === projectId);
-  if (!project) return;
-  project.picked = project.picked.filter(id => id !== studentId);
-  if (!project.eligible.includes(studentId)) {
-    project.eligible.push(studentId);
+  const qs = data.quickSpin!;
+
+  if (record.removedFromPool) {
+    qs.eligible = qs.eligible.filter(id => id !== record.entryId);
+  }
+  qs.picked.push(record.entryId);
+  qs.history.push(record);
+  save(data);
+}
+
+// ─── Session operations ─────────────────────────────────
+
+export function resetSession(sessionId: string): void {
+  const data = load();
+  const session = data.sessions.find(s => s.id === sessionId);
+  if (!session) return;
+  session.eligible = [...session.eligible, ...session.picked.filter(id => !session.eligible.includes(id))];
+  session.picked = [];
+  session.history = [];
+  save(data);
+}
+
+export function sessionMoveBackToEligible(sessionId: string, studentId: string): void {
+  const data = load();
+  const session = data.sessions.find(s => s.id === sessionId);
+  if (!session) return;
+  session.picked = session.picked.filter(id => id !== studentId);
+  if (!session.eligible.includes(studentId)) {
+    session.eligible.push(studentId);
   }
   save(data);
 }
 
-export function removeFromEligible(projectId: string, studentId: string): void {
+export function sessionRemoveFromEligible(sessionId: string, studentId: string): void {
   const data = load();
-  const project = data.projects.find(p => p.id === projectId);
-  if (!project) return;
-  project.eligible = project.eligible.filter(id => id !== studentId);
+  const session = data.sessions.find(s => s.id === sessionId);
+  if (!session) return;
+  session.eligible = session.eligible.filter(id => id !== studentId);
   save(data);
 }
 
-export function setProjectMode(projectId: string, mode: 'remove' | 'keep'): void {
+export function setSessionMode(sessionId: string, mode: 'remove' | 'keep'): void {
   const data = load();
-  const project = data.projects.find(p => p.id === projectId);
-  if (!project) return;
-  project.mode = mode;
+  const session = data.sessions.find(s => s.id === sessionId);
+  if (!session) return;
+  session.mode = mode;
   save(data);
 }
 
-export function undoProjectSpin(projectId: string, record: SpinRecord): void {
+export function undoSessionSpin(sessionId: string, record: SpinRecord): void {
   const data = load();
-  const project = data.projects.find(p => p.id === projectId);
-  if (!project) return;
-  // Remove last occurrence from picked
-  const pickedIdx = project.picked.lastIndexOf(record.entryId);
-  if (pickedIdx !== -1) project.picked.splice(pickedIdx, 1);
-  // Restore to eligible if it was removed
-  if (record.removedFromPool && !project.eligible.includes(record.entryId)) {
-    project.eligible.push(record.entryId);
+  const session = data.sessions.find(s => s.id === sessionId);
+  if (!session) return;
+  const pickedIdx = session.picked.lastIndexOf(record.entryId);
+  if (pickedIdx !== -1) session.picked.splice(pickedIdx, 1);
+  if (record.removedFromPool && !session.eligible.includes(record.entryId)) {
+    session.eligible.push(record.entryId);
   }
-  // Remove from history
-  const histIdx = project.history.findIndex(h => h.timestamp === record.timestamp && h.entryId === record.entryId);
-  if (histIdx !== -1) project.history.splice(histIdx, 1);
+  const histIdx = session.history.findIndex(h => h.timestamp === record.timestamp && h.entryId === record.entryId);
+  if (histIdx !== -1) session.history.splice(histIdx, 1);
   save(data);
 }
 
-export function restoreProjectState(projectId: string, eligible: string[], picked: string[], history: SpinRecord[]): void {
+export function restoreSessionState(sessionId: string, eligible: string[], picked: string[], history: SpinRecord[]): void {
   const data = load();
-  const project = data.projects.find(p => p.id === projectId);
-  if (!project) return;
-  project.eligible = eligible;
-  project.picked = picked;
-  project.history = history;
+  const session = data.sessions.find(s => s.id === sessionId);
+  if (!session) return;
+  session.eligible = eligible;
+  session.picked = picked;
+  session.history = history;
   save(data);
 }
 
@@ -336,10 +447,8 @@ export function setQuickSpinNames(names: string[]): void {
   for (let i = 0; i < filteredNames.length; i++) {
     const name = filteredNames[i].trim();
     if (i < existing.items.length && existing.items[i].name === name) {
-      // Same name at same position — preserve ID
       newItems.push(existing.items[i]);
     } else {
-      // New or changed — generate new ID
       newItems.push({ id: genId(), name });
     }
   }
@@ -351,31 +460,6 @@ export function setQuickSpinNames(names: string[]): void {
     mode: existing.mode,
   };
   save(data);
-}
-
-export function quickSpinPick(): SpinRecord | null {
-  const data = load();
-  const qs = data.quickSpin!;
-  if (qs.eligible.length === 0) return null;
-
-  const idx = Math.floor(Math.random() * qs.eligible.length);
-  const winnerId = qs.eligible[idx];
-  const winnerName = qs.items.find(i => i.id === winnerId)?.name ?? '(unknown)';
-
-  const record: SpinRecord = {
-    entryId: winnerId,
-    entryName: winnerName,
-    timestamp: Date.now(),
-    removedFromPool: qs.mode === 'remove',
-  };
-
-  if (qs.mode === 'remove') {
-    qs.eligible.splice(idx, 1);
-  }
-  qs.picked.push(winnerId);
-  qs.history.push(record);
-  save(data);
-  return record;
 }
 
 export function quickSpinReset(): void {
@@ -415,14 +499,11 @@ export function setQuickSpinMode(mode: 'remove' | 'keep'): void {
 export function undoQuickSpin(record: SpinRecord): void {
   const data = load();
   const qs = data.quickSpin!;
-  // Remove last occurrence from picked
   const pickedIdx = qs.picked.lastIndexOf(record.entryId);
   if (pickedIdx !== -1) qs.picked.splice(pickedIdx, 1);
-  // Restore to eligible if it was removed
   if (record.removedFromPool && !qs.eligible.includes(record.entryId)) {
     qs.eligible.push(record.entryId);
   }
-  // Remove from history
   const histIdx = qs.history.findIndex(h => h.timestamp === record.timestamp && h.entryId === record.entryId);
   if (histIdx !== -1) qs.history.splice(histIdx, 1);
   save(data);
@@ -463,7 +544,7 @@ export function exportData(): string {
 
 export function importData(json: string): void {
   let data = JSON.parse(json) as AppData;
-  if (!Array.isArray(data.classes) || !Array.isArray(data.projects)) {
+  if (!Array.isArray(data.classes)) {
     throw new Error('Invalid data format');
   }
   data = migrateData(data);
