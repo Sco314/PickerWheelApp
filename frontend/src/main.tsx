@@ -52,9 +52,14 @@ type UndoAction =
 function App() {
   const [appMode, setAppMode] = useState<AppMode>({ type: 'quick' });
   const [spinning, setSpinning] = useState(false);
+  const spinningRef = useRef(false);
   const [targetId, setTargetId] = useState<string | null>(null);
-  const [pendingSpin, setPendingSpin] = useState<SpinRecord | null>(null);
-  const pendingSpinRef = useRef<SpinRecord | null>(null);
+  const spinIdRef = useRef(0);
+  const currentSpinRef = useRef<{
+    id: number;
+    record: SpinRecord;
+    eligibleSnapshot: { id: string; name: string }[];
+  } | null>(null);
   const [, setTick] = useState(0);
 
   // Draft session state (before first spin persists it)
@@ -105,6 +110,21 @@ function App() {
     if (showGear) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showGear]);
+
+  // Query string support: ?names=Alice,Bob,Charlie loads a pre-configured quick spin
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const namesParam = params.get('names');
+    if (namesParam) {
+      const names = namesParam.split(',').map(n => decodeURIComponent(n.trim())).filter(Boolean);
+      if (names.length > 0) {
+        setQuickSpinNames(names);
+        setAppMode({ type: 'quick' });
+        // Clean URL without reloading (keep the page clean after loading)
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Hash-based routing for deep links
   useEffect(() => {
@@ -182,21 +202,6 @@ function App() {
     prevModeRef.current = appMode;
   }, [appMode]);
 
-  // Keyboard handler (Ctrl+Z)
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement;
-      const isTextInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-      if (isTextInput) return;
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        e.preventDefault();
-        handleUndo();
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  });
-
   // Derive display data
   const session = sessionId ? getSession(sessionId) : null;
 
@@ -227,7 +232,8 @@ function App() {
 
   // ─── Spin (deferred mutation) ─────────────────────────
   const handleSpinStart = useCallback(() => {
-    if (spinning) return;
+    if (spinningRef.current) return;    // ref guard — immune to stale state
+
     let record: SpinRecord | null = null;
 
     if (isQuick) {
@@ -240,43 +246,56 @@ function App() {
 
     if (!record) return;
 
-    pendingSpinRef.current = record;
-    setPendingSpin(record);
+    // Single source of truth: one spinId + record + eligible snapshot per spin
+    spinningRef.current = true;
+    const id = ++spinIdRef.current;
+    currentSpinRef.current = { id, record, eligibleSnapshot: [...eligibleNames] };
     setTargetId(record.entryId);
     setSpinning(true);
-  }, [spinning, isQuick, isDraft, classId, sessionId, draftEligible]);
+  }, [isQuick, isDraft, classId, sessionId, draftEligible, eligibleNames]);
 
-  // Animation finished — show winner dialog or auto-remove
-  const handleSpinComplete = useCallback(() => {
+  // Animation finished — ref-based so it always reads fresh closure state.
+  // The stable useCallback wrapper just delegates to the ref.
+  const handleSpinCompleteRef = useRef<(winnerId: string) => void>(() => {});
+  handleSpinCompleteRef.current = (winnerId: string) => {
+    const spin = currentSpinRef.current;
+    if (!spin || spin.record.entryId !== winnerId) {
+      // Stale callback from a previous/cancelled spin — discard
+      spinningRef.current = false;
+      setSpinning(false);
+      return;
+    }
+    spinningRef.current = false;
     setSpinning(false);
-    if (!pendingSpinRef.current) return;
 
     const settings = getAppSettings();
     if (settings.autoRemoveWinners) {
-      // Auto-remove: skip the dialog, apply immediately with remove=true
-      autoApplyWinner();
+      applyWinnerChoice(true);
     } else {
       setShowWinnerDialog(true);
     }
+  };
+  const handleSpinComplete = useCallback((winnerId: string) => {
+    handleSpinCompleteRef.current(winnerId);
   }, []);
 
   // Apply the spin result after winner dialog choice
   const applyWinnerChoice = (removed: boolean) => {
-    const spin = pendingSpinRef.current;
+    const spin = currentSpinRef.current;
     if (!spin) return;
 
-    spin.removedFromPool = removed;
+    const record = { ...spin.record, removedFromPool: removed };
 
     if (isQuick) {
-      applyQuickSpinPick(spin);
+      applyQuickSpinPick(record);
     } else if (isDraft && classId) {
       const newEligible = removed
-        ? draftEligible.filter(id => id !== spin.entryId)
+        ? draftEligible.filter(id => id !== record.entryId)
         : [...draftEligible];
       const newPicked = removed
-        ? [...draftPicked, spin.entryId]
+        ? [...draftPicked, record.entryId]
         : [...draftPicked];
-      const newHistory = [...draftHistory, spin];
+      const newHistory = [...draftHistory, record];
 
       const newSession = createSessionWithState(
         classId, newEligible, newPicked, newHistory, 'remove',
@@ -286,22 +305,18 @@ function App() {
       setDraftPicked([]);
       setDraftHistory([]);
     } else if (sessionId) {
-      applySessionPick(sessionId, spin);
+      applySessionPick(sessionId, record);
     }
 
-    setUndoStack(prev => [...prev, { type: 'spin', record: spin, prevLastWinner: lastWinner }]);
-    setLastWinner(spin);
-    pendingSpinRef.current = null;
-    setPendingSpin(null);
+    setUndoStack(prev => [...prev, { type: 'spin', record, prevLastWinner: lastWinner }]);
+    setLastWinner(record);
+    currentSpinRef.current = null;
     setShowWinnerDialog(false);
     refresh();
   };
 
   const handleWinnerClose = () => applyWinnerChoice(false);
   const handleWinnerRemove = () => applyWinnerChoice(true);
-
-  // Auto-remove: apply immediately without showing dialog
-  const autoApplyWinner = () => applyWinnerChoice(true);
 
   // ─── Undo ─────────────────────────────────────────────
   const handleUndo = () => {
@@ -342,6 +357,31 @@ function App() {
     }
     refresh();
   };
+
+  // Keyboard shortcuts (Ctrl+Z = Undo, Ctrl+Enter = Spin)
+  // Use refs so the effect registers once but always calls fresh handlers.
+  const handleSpinStartRef = useRef(handleSpinStart);
+  handleSpinStartRef.current = handleSpinStart;
+  const handleUndoRef = useRef(handleUndo);
+  handleUndoRef.current = handleUndo;
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      const isTextInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      if (isTextInput) return;
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        handleUndoRef.current();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSpinStartRef.current();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Reset Round ──────────────────────────────────────
   const handleResetRound = () => {
@@ -493,6 +533,21 @@ function App() {
     setEditorStatus('idle');
   };
 
+  // ─── Share URL ───────────────────────────────────────
+  const [showCopied, setShowCopied] = useState(false);
+
+  const handleShareUrl = () => {
+    const nameList = eligibleNames.concat(pickedNames).map(n => n.name);
+    if (nameList.length === 0) return;
+    const encoded = nameList.map(n => encodeURIComponent(n)).join(',');
+    const url = `${window.location.origin}${window.location.pathname}?names=${encoded}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+    });
+    setShowGear(false);
+  };
+
   // ─── Export / Import ──────────────────────────────────
 
   const handleExport = () => {
@@ -561,6 +616,7 @@ function App() {
           {showGear && (
             <div className="gear-dropdown">
               <button onClick={() => { setShowSettings(true); setShowGear(false); }}>Settings</button>
+              <button onClick={handleShareUrl}>Share Wheel URL</button>
               <button onClick={handleExport}>Export Data</button>
               <button onClick={handleImport}>Import Data</button>
             </div>
@@ -617,7 +673,7 @@ function App() {
           )}
 
           <SpinnerWheel
-            names={eligibleNames}
+            names={spinning && currentSpinRef.current ? currentSpinRef.current.eligibleSnapshot : eligibleNames}
             onSpinComplete={handleSpinComplete}
             spinning={spinning}
             onSpinStart={handleSpinStart}
@@ -642,9 +698,9 @@ function App() {
       />
 
       {/* ─── Winner Dialog (WoN style) ─── */}
-      {showWinnerDialog && pendingSpin && (
+      {showWinnerDialog && currentSpinRef.current && (
         <WinnerDialog
-          winnerName={pendingSpin.entryName}
+          winnerName={currentSpinRef.current.record.entryName}
           onClose={handleWinnerClose}
           onRemove={handleWinnerRemove}
         />
@@ -695,6 +751,11 @@ function App() {
         <Modal title="Settings" onClose={() => setShowSettings(false)}>
           <SettingsPanel onSettingsChanged={refresh} />
         </Modal>
+      )}
+
+      {/* Copied toast */}
+      {showCopied && (
+        <div className="toast-copied">Link copied to clipboard!</div>
       )}
     </div>
   );

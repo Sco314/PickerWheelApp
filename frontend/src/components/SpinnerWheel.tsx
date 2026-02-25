@@ -1,12 +1,51 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { playTick } from '../services/sounds';
 
-const COLORS = [
+const LARGE_LIST_THRESHOLD = 50; // Show name-at-pointer overlay when segment count exceeds this
+
+const PALETTE = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
   '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
   '#BB8FCE', '#85C1E9', '#F0B27A', '#82E0AA',
   '#F1948A', '#AED6F1', '#D7BDE2', '#A3E4D7',
 ];
+
+/**
+ * Assign colors so no two adjacent segments (including wrap-around) share the same color.
+ * Uses a greedy approach: for each segment, pick the next palette color that differs
+ * from its neighbor(s). For the last segment, also avoids the first segment's color.
+ */
+function assignColors(count: number): string[] {
+  if (count === 0) return [];
+  if (count === 1) return [PALETTE[0]];
+
+  const result: string[] = [PALETTE[0]];
+  let paletteIdx = 1;
+
+  for (let i = 1; i < count; i++) {
+    const prev = result[i - 1];
+    const isLast = i === count - 1;
+    const first = result[0];
+
+    // Find a palette color that differs from the previous (and from first if last segment)
+    let attempts = 0;
+    while (attempts < PALETTE.length) {
+      const candidate = PALETTE[paletteIdx % PALETTE.length];
+      paletteIdx++;
+      if (candidate !== prev && (!isLast || count <= 2 || candidate !== first)) {
+        result.push(candidate);
+        break;
+      }
+      attempts++;
+    }
+    // Fallback (shouldn't happen with 16 colors): just push next color
+    if (result.length <= i) {
+      result.push(PALETTE[paletteIdx % PALETTE.length]);
+      paletteIdx++;
+    }
+  }
+  return result;
+}
 
 type Props = {
   names: { id: string; name: string }[];
@@ -27,20 +66,44 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
   const namesRef = useRef(names);
   namesRef.current = names;
 
+  // Cached canvas dimensions — updated on mount and resize only (not every frame).
+  // Avoids getBoundingClientRect() layout reflow at 60fps during animation.
+  const dimensionsRef = useRef<{ w: number; h: number; dpr: number } | null>(null);
+
+  useEffect(() => {
+    function updateDimensions() {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      dimensionsRef.current = { w: rect.width, h: rect.height, dpr };
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+    }
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
+
+  // Compute colors once per name-count change — ensures no adjacent segments share a color
+  const segmentColors = useMemo(() => assignColors(names.length), [names.length]);
+
+  // Large list: track which name is under the pointer
+  const [nameAtPointer, setNameAtPointer] = useState('');
+  const isLargeList = names.length >= LARGE_LIST_THRESHOLD;
+  const nameAtPointerRef = useRef('');
+
   const draw = useCallback((rotation: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-
-    const w = rect.width;
-    const h = rect.height;
+    const dims = dimensionsRef.current;
+    if (!dims) return;
+    const { w, h, dpr } = dims;
+    // Reset transform (absolute, not cumulative) and clear — avoids canvas resize per frame
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const cx = w / 2;
     const cy = h / 2;
     const radius = Math.min(cx, cy) - 10;
@@ -83,27 +146,30 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
       ctx.moveTo(cx, cy);
       ctx.arc(cx, cy, radius, startAngle, endAngle);
       ctx.closePath();
-      ctx.fillStyle = COLORS[i % COLORS.length];
+      ctx.fillStyle = segmentColors[i] || PALETTE[i % PALETTE.length];
       ctx.fill();
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(startAngle + sliceAngle / 2);
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#333';
-      ctx.font = `bold ${Math.min(16, 300 / names.length)}px Arial`;
-      const maxTextWidth = radius - 30;
-      let label = names[i].name;
-      while (ctx.measureText(label).width > maxTextWidth && label.length > 1) {
-        label = label.slice(0, -1);
+      // Skip text labels for large lists — they'd be unreadable
+      if (names.length < LARGE_LIST_THRESHOLD) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(startAngle + sliceAngle / 2);
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#333';
+        ctx.font = `bold ${Math.min(16, 300 / names.length)}px Arial`;
+        const maxTextWidth = radius - 30;
+        let label = names[i].name;
+        while (ctx.measureText(label).width > maxTextWidth && label.length > 1) {
+          label = label.slice(0, -1);
+        }
+        if (label !== names[i].name) label += '\u2026';
+        ctx.fillText(label, radius - 15, 0);
+        ctx.restore();
       }
-      if (label !== names[i].name) label += '\u2026';
-      ctx.fillText(label, radius - 15, 0);
-      ctx.restore();
     }
 
     // Pegs between segments on the rim
@@ -155,7 +221,20 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
     ctx.strokeStyle = '#c0392b';
     ctx.lineWidth = 2;
     ctx.stroke();
-  }, [names]);
+
+    // Compute which name is under the pointer (pointer is at -PI/2 = top)
+    if (names.length >= LARGE_LIST_THRESHOLD) {
+      const pointerAngle = -Math.PI / 2;
+      // Normalize: which segment does the pointer land on?
+      const relAngle = ((pointerAngle - rotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+      const idx = Math.floor(relAngle / sliceAngle) % names.length;
+      const newName = names[idx]?.name || '';
+      if (newName !== nameAtPointerRef.current) {
+        nameAtPointerRef.current = newName;
+        setNameAtPointer(newName);
+      }
+    }
+  }, [names, segmentColors]);
 
   const drawRef = useRef(draw);
   drawRef.current = draw;
@@ -245,6 +324,10 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
 
   return (
     <div className="spinner-container">
+      {/* Large list overlay: show name at pointer */}
+      {isLargeList && nameAtPointer && (
+        <div className="pointer-name-overlay">{nameAtPointer}</div>
+      )}
       <canvas
         ref={canvasRef}
         className="spinner-canvas"
@@ -255,6 +338,7 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
         className="spin-button"
         onClick={onSpinStart}
         disabled={spinning || names.length === 0}
+        title="Ctrl+Enter"
       >
         {spinning ? 'Spinning...' : 'SPIN!'}
       </button>
