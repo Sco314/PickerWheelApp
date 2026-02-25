@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { playCelebration } from '../services/sounds';
 
 type Props = {
   winnerName: string;
@@ -75,6 +76,7 @@ export default function WinnerDialog({ winnerName, onClose, onRemove }: Props) {
   const confettiRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    playCelebration();
     if (confettiRef.current) {
       const cleanup = launchConfetti(confettiRef.current);
       return cleanup;

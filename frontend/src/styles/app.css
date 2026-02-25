@@ -652,6 +652,115 @@ body {
   outline: none;
 }
 
+/* ─── Settings Panel ────────────────────────────────── */
+.settings-panel {
+  width: 100%;
+}
+.settings-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #eee;
+  margin-bottom: 1rem;
+}
+.settings-tab {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.settings-tab:hover { color: #555; }
+.settings-tab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.settings-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.settings-checkbox:hover { background: #f5f5f5; }
+.settings-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: #667eea;
+}
+.settings-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+.settings-desc {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 0.15rem;
+}
+.settings-range {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+}
+.settings-range input[type="range"] {
+  flex: 1;
+  accent-color: #667eea;
+}
+.settings-range-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #555;
+  min-width: 3rem;
+  text-align: right;
+}
+
+/* ─── Credits ───────────────────────────────────────── */
+.credits-section {
+  margin-bottom: 1rem;
+}
+.credits-section h3 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #888;
+  margin-bottom: 0.5rem;
+}
+.credits-item {
+  padding: 0.4rem 0;
+  font-size: 0.9rem;
+}
+.credits-item strong {
+  display: block;
+  color: #333;
+  margin-bottom: 0.15rem;
+}
+.credits-item p {
+  color: #666;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.credits-item a {
+  color: #667eea;
+  text-decoration: none;
+}
+.credits-item a:hover { text-decoration: underline; }
+
 /* ─── Empty States ──────────────────────────────────── */
 .empty-state {
   color: #999;

@@ -5,8 +5,10 @@ import ClassSelector from './components/ClassSelector';
 import ControlBar from './components/ControlBar';
 import ListPanel from './components/ListPanel';
 import Modal from './components/Modal';
+import SettingsPanel from './components/SettingsPanel';
 import SpinnerWheel from './components/SpinnerWheel';
 import WinnerDialog from './components/WinnerDialog';
+import { getAppSettings } from './services/settings';
 import {
   type SpinRecord,
   applyQuickSpinPick,
@@ -63,6 +65,7 @@ function App() {
   // Modal states
   const [showClasses, setShowClasses] = useState(false);
   const [showWinnerDialog, setShowWinnerDialog] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Inline session name editing
   const [editingSessionName, setEditingSessionName] = useState(false);
@@ -243,10 +246,16 @@ function App() {
     setSpinning(true);
   }, [spinning, isQuick, isDraft, classId, sessionId, draftEligible]);
 
-  // Animation finished — show winner dialog (don't apply yet)
+  // Animation finished — show winner dialog or auto-remove
   const handleSpinComplete = useCallback(() => {
     setSpinning(false);
-    if (pendingSpinRef.current) {
+    if (!pendingSpinRef.current) return;
+
+    const settings = getAppSettings();
+    if (settings.autoRemoveWinners) {
+      // Auto-remove: skip the dialog, apply immediately with remove=true
+      autoApplyWinner();
+    } else {
       setShowWinnerDialog(true);
     }
   }, []);
@@ -290,6 +299,9 @@ function App() {
 
   const handleWinnerClose = () => applyWinnerChoice(false);
   const handleWinnerRemove = () => applyWinnerChoice(true);
+
+  // Auto-remove: apply immediately without showing dialog
+  const autoApplyWinner = () => applyWinnerChoice(true);
 
   // ─── Undo ─────────────────────────────────────────────
   const handleUndo = () => {
@@ -548,6 +560,7 @@ function App() {
           </button>
           {showGear && (
             <div className="gear-dropdown">
+              <button onClick={() => { setShowSettings(true); setShowGear(false); }}>Settings</button>
               <button onClick={handleExport}>Export Data</button>
               <button onClick={handleImport}>Import Data</button>
             </div>
@@ -675,6 +688,12 @@ function App() {
       {showClasses && (
         <Modal title="My Classes" onClose={() => { setShowClasses(false); refresh(); }}>
           <ClassManager />
+        </Modal>
+      )}
+
+      {showSettings && (
+        <Modal title="Settings" onClose={() => setShowSettings(false)}>
+          <SettingsPanel onSettingsChanged={refresh} />
         </Modal>
       )}
     </div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { playTick } from '../services/sounds';
 
 const COLORS = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
@@ -19,6 +20,7 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const angleRef = useRef(0);
+  const lastPegIndexRef = useRef(-1);
   // Stable refs to prevent animation effect restart mid-spin
   const onSpinCompleteRef = useRef(onSpinComplete);
   onSpinCompleteRef.current = onSpinComplete;
@@ -44,6 +46,16 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
     const radius = Math.min(cx, cy) - 10;
 
     ctx.clearRect(0, 0, w, h);
+
+    // Dark circular backdrop for visual contrast (WoN style)
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#2c3e50';
+    ctx.fill();
+    ctx.restore();
 
     if (names.length === 0) {
       ctx.beginPath();
@@ -94,14 +106,41 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
       ctx.restore();
     }
 
-    // Center circle
+    // Pegs between segments on the rim
+    if (names.length > 0) {
+      for (let i = 0; i < names.length; i++) {
+        const pegAngle = rotation + i * sliceAngle;
+        const pegX = cx + Math.cos(pegAngle) * (radius - 2);
+        const pegY = cy + Math.sin(pegAngle) * (radius - 2);
+        ctx.beginPath();
+        ctx.arc(pegX, pegY, 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+
+    // Center circle — acts as SPIN button
+    const centerRadius = 30;
     ctx.beginPath();
-    ctx.arc(cx, cy, 25, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
+    ctx.arc(cx, cy, centerRadius, 0, Math.PI * 2);
+    const centerGrad = ctx.createRadialGradient(cx, cy - 5, 0, cx, cy, centerRadius);
+    centerGrad.addColorStop(0, '#fff');
+    centerGrad.addColorStop(1, '#e8e8e8');
+    ctx.fillStyle = centerGrad;
     ctx.fill();
-    ctx.strokeStyle = '#333';
+    ctx.strokeStyle = '#bbb';
     ctx.lineWidth = 2;
     ctx.stroke();
+
+    // "SPIN" text in center
+    ctx.fillStyle = '#e74c3c';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SPIN', cx, cy);
 
     // Pointer arrow (top, pointing down — WoN style)
     const pointerX = cx;
@@ -120,6 +159,24 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
 
   const drawRef = useRef(draw);
   drawRef.current = draw;
+
+  // Click handler for canvas — clicking the wheel triggers spin
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (spinning || names.length === 0) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const radius = Math.min(cx, cy) - 10;
+    const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+    // Only trigger on clicks within the wheel area
+    if (dist <= radius) {
+      onSpinStart();
+    }
+  }, [spinning, names.length, onSpinStart]);
 
   // Redraw wheel when names change (non-animated)
   useEffect(() => {
@@ -147,6 +204,7 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
     const totalRotation = targetAngle - startAngle;
     const duration = 3000 + Math.random() * 1000;
     const startTime = performance.now();
+    lastPegIndexRef.current = -1;
 
     function easeOutCubic(t: number): number {
       return 1 - Math.pow(1 - t, 3);
@@ -157,6 +215,16 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
       const t = Math.min(elapsed / duration, 1);
       const eased = easeOutCubic(t);
       const currentAngle = startAngle + totalRotation * eased;
+
+      // Tick sound: detect when a peg crosses the pointer (top, -PI/2)
+      if (currentNames.length > 0) {
+        const normalizedAngle = ((currentAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        const pegIndex = Math.floor(normalizedAngle / sliceAngle);
+        if (pegIndex !== lastPegIndexRef.current) {
+          lastPegIndexRef.current = pegIndex;
+          playTick();
+        }
+      }
 
       angleRef.current = currentAngle;
       currentDraw(currentAngle);
@@ -177,7 +245,12 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
 
   return (
     <div className="spinner-container">
-      <canvas ref={canvasRef} className="spinner-canvas" />
+      <canvas
+        ref={canvasRef}
+        className="spinner-canvas"
+        onClick={handleCanvasClick}
+        style={{ cursor: spinning || names.length === 0 ? 'default' : 'pointer' }}
+      />
       <button
         className="spin-button"
         onClick={onSpinStart}
