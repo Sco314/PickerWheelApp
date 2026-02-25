@@ -300,7 +300,7 @@ export function pickRandomFromSession(sessionId: string): SpinRecord | null {
     entryId: winnerId,
     entryName: winnerName,
     timestamp: Date.now(),
-    removedFromPool: session.mode === 'remove',
+    removedFromPool: false, // decided by winner dialog
   };
 }
 
@@ -317,7 +317,7 @@ export function pickRandomFromQuickSpin(): SpinRecord | null {
     entryId: winnerId,
     entryName: winnerName,
     timestamp: Date.now(),
-    removedFromPool: qs.mode === 'remove',
+    removedFromPool: false, // decided by winner dialog
   };
 }
 
@@ -325,7 +325,6 @@ export function pickRandomFromQuickSpin(): SpinRecord | null {
 export function pickRandomFromDraft(
   classId: string,
   eligible: string[],
-  mode: 'remove' | 'keep',
 ): SpinRecord | null {
   if (eligible.length === 0) return null;
 
@@ -338,7 +337,7 @@ export function pickRandomFromDraft(
     entryId: winnerId,
     entryName: winnerName,
     timestamp: Date.now(),
-    removedFromPool: mode === 'remove',
+    removedFromPool: false, // decided by winner dialog
   };
 }
 
@@ -350,8 +349,8 @@ export function applySessionPick(sessionId: string, record: SpinRecord): void {
 
   if (record.removedFromPool) {
     session.eligible = session.eligible.filter(id => id !== record.entryId);
+    session.picked.push(record.entryId);
   }
-  session.picked.push(record.entryId);
   session.history.push(record);
   session.lastSpinAt = new Date().toISOString();
   save(data);
@@ -363,8 +362,8 @@ export function applyQuickSpinPick(record: SpinRecord): void {
 
   if (record.removedFromPool) {
     qs.eligible = qs.eligible.filter(id => id !== record.entryId);
+    qs.picked.push(record.entryId);
   }
-  qs.picked.push(record.entryId);
   qs.history.push(record);
   save(data);
 }

@@ -217,13 +217,6 @@ body {
   margin: 0 auto;
   width: 100%;
 }
-.picker-layout.hide-picked {
-  grid-template-columns: 1fr 1.5fr;
-}
-.picker-layout.hide-picked .list-panel-picked {
-  display: none;
-}
-
 .center-column {
   display: flex;
   flex-direction: column;
@@ -357,36 +350,63 @@ body {
 .spin-button:active:not(:disabled) { transform: scale(0.98); }
 .spin-button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ─── Last Winner Panel ─────────────────────────────── */
-.last-winner {
-  background: #fff;
-  border-radius: 10px;
-  padding: 0.75rem 1.25rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  text-align: center;
-  width: 100%;
-  max-width: 320px;
-  animation: fadeInScale 0.3s ease;
-}
-.last-winner-name {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #e74c3c;
-}
-.last-winner-status {
-  font-size: 0.8rem;
-  color: #888;
-  margin-top: 0.15rem;
-}
-.last-winner-actions {
+/* ─── Winner Dialog (WoN style) ────────────────────── */
+.winner-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
   justify-content: center;
-  margin-top: 0.5rem;
+  z-index: 300;
+  animation: fadeIn 0.15s ease;
+}
+.winner-confetti {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 301;
+}
+.winner-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.25);
+  text-align: center;
+  min-width: 280px;
+  max-width: 420px;
+  z-index: 302;
+  animation: winnerPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.winner-header {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #888;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.winner-name {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #e74c3c;
+  margin-bottom: 1.5rem;
+  word-break: break-word;
+}
+.winner-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+.winner-actions .btn {
+  padding: 0.6rem 1.5rem;
+  font-size: 1rem;
 }
 
-@keyframes fadeInScale {
-  from { opacity: 0; transform: scale(0.8); }
+@keyframes winnerPop {
+  from { opacity: 0; transform: scale(0.5); }
   to { opacity: 1; transform: scale(1); }
 }
 
@@ -402,35 +422,6 @@ body {
   flex-wrap: wrap;
 }
 
-.mode-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #666;
-}
-
-.mode-toggle {
-  display: flex;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 2px solid #ddd;
-}
-.mode-toggle-btn {
-  padding: 0.35rem 0.75rem;
-  border: none;
-  background: #f5f5f5;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  color: #666;
-  transition: background 0.15s, color 0.15s;
-}
-.mode-toggle-btn:hover {
-  background: #e8e8e8;
-}
-.mode-toggle-btn.active {
-  background: #667eea;
-  color: #fff;
-}
 
 /* ─── Edit Drawer ───────────────────────────────────── */
 .drawer-backdrop {

@@ -103,13 +103,13 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Pointer arrow (right side)
-    const pointerX = cx + radius + 8;
-    const pointerY = cy;
+    // Pointer arrow (top, pointing down — WoN style)
+    const pointerX = cx;
+    const pointerY = cy - radius - 2;
     ctx.beginPath();
-    ctx.moveTo(pointerX, pointerY);
-    ctx.lineTo(pointerX + 20, pointerY - 12);
-    ctx.lineTo(pointerX + 20, pointerY + 12);
+    ctx.moveTo(pointerX, pointerY + 18);
+    ctx.lineTo(pointerX - 12, pointerY);
+    ctx.lineTo(pointerX + 12, pointerY);
     ctx.closePath();
     ctx.fillStyle = '#e74c3c';
     ctx.fill();
@@ -140,7 +140,8 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
 
     const sliceAngle = (Math.PI * 2) / currentNames.length;
     const extraSpins = 5 + Math.random() * 3;
-    const targetAngle = -(targetIndex * sliceAngle + sliceAngle / 2) - extraSpins * Math.PI * 2;
+    // Align target segment with top pointer (-PI/2)
+    const targetAngle = -Math.PI / 2 - (targetIndex * sliceAngle + sliceAngle / 2) - extraSpins * Math.PI * 2;
 
     const startAngle = angleRef.current;
     const totalRotation = targetAngle - startAngle;

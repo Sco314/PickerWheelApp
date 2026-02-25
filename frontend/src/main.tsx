@@ -3,10 +3,10 @@ import { createRoot } from 'react-dom/client';
 import ClassManager from './components/ClassManager';
 import ClassSelector from './components/ClassSelector';
 import ControlBar from './components/ControlBar';
-import LastWinner from './components/LastWinner';
 import ListPanel from './components/ListPanel';
 import Modal from './components/Modal';
 import SpinnerWheel from './components/SpinnerWheel';
+import WinnerDialog from './components/WinnerDialog';
 import {
   type SpinRecord,
   applyQuickSpinPick,
@@ -31,9 +31,7 @@ import {
   resolveQuickSpinNames,
   sessionMoveBackToEligible,
   sessionRemoveFromEligible,
-  setQuickSpinMode,
   setQuickSpinNames,
-  setSessionMode,
   undoQuickSpin,
   undoSessionSpin,
   restoreQuickSpinState,
@@ -61,10 +59,10 @@ function App() {
   const [draftEligible, setDraftEligible] = useState<string[]>([]);
   const [draftPicked, setDraftPicked] = useState<string[]>([]);
   const [draftHistory, setDraftHistory] = useState<SpinRecord[]>([]);
-  const [draftMode, setDraftMode] = useState<'remove' | 'keep'>('remove');
 
   // Modal states
   const [showClasses, setShowClasses] = useState(false);
+  const [showWinnerDialog, setShowWinnerDialog] = useState(false);
 
   // Inline session name editing
   const [editingSessionName, setEditingSessionName] = useState(false);
@@ -142,7 +140,6 @@ function App() {
             setDraftEligible(cls.students.map(s => s.id));
             setDraftPicked([]);
             setDraftHistory([]);
-            setDraftMode('remove');
           }
         }
       } catch { /* ignore */ }
@@ -199,11 +196,6 @@ function App() {
 
   // Derive display data
   const session = sessionId ? getSession(sessionId) : null;
-  const currentMode = isQuick
-    ? getQuickSpin().mode
-    : isDraft
-      ? draftMode
-      : (session?.mode ?? 'remove');
 
   let eligibleNames: { id: string; name: string }[] = [];
   let pickedNames: { id: string; name: string }[] = [];
@@ -238,7 +230,7 @@ function App() {
     if (isQuick) {
       record = pickRandomFromQuickSpin();
     } else if (isDraft && classId) {
-      record = pickRandomFromDraft(classId, draftEligible, draftMode);
+      record = pickRandomFromDraft(classId, draftEligible);
     } else if (sessionId) {
       record = pickRandomFromSession(sessionId);
     }
@@ -249,30 +241,36 @@ function App() {
     setPendingSpin(record);
     setTargetId(record.entryId);
     setSpinning(true);
-    setUndoStack(prev => [...prev, { type: 'spin', record: record!, prevLastWinner: lastWinner }]);
-    setLastWinner(record);
-  }, [spinning, isQuick, isDraft, classId, sessionId, draftEligible, draftMode, lastWinner]);
+  }, [spinning, isQuick, isDraft, classId, sessionId, draftEligible]);
 
+  // Animation finished — show winner dialog (don't apply yet)
   const handleSpinComplete = useCallback(() => {
     setSpinning(false);
-
-    const spin = pendingSpinRef.current;
-    if (!spin) {
-      refresh();
-      return;
+    if (pendingSpinRef.current) {
+      setShowWinnerDialog(true);
     }
+  }, []);
+
+  // Apply the spin result after winner dialog choice
+  const applyWinnerChoice = (removed: boolean) => {
+    const spin = pendingSpinRef.current;
+    if (!spin) return;
+
+    spin.removedFromPool = removed;
 
     if (isQuick) {
       applyQuickSpinPick(spin);
     } else if (isDraft && classId) {
-      const newEligible = spin.removedFromPool
+      const newEligible = removed
         ? draftEligible.filter(id => id !== spin.entryId)
         : [...draftEligible];
-      const newPicked = [...draftPicked, spin.entryId];
+      const newPicked = removed
+        ? [...draftPicked, spin.entryId]
+        : [...draftPicked];
       const newHistory = [...draftHistory, spin];
 
       const newSession = createSessionWithState(
-        classId, newEligible, newPicked, newHistory, draftMode,
+        classId, newEligible, newPicked, newHistory, 'remove',
       );
       setAppMode({ type: 'class', classId, sessionId: newSession.id });
       setDraftEligible([]);
@@ -282,10 +280,16 @@ function App() {
       applySessionPick(sessionId, spin);
     }
 
+    setUndoStack(prev => [...prev, { type: 'spin', record: spin, prevLastWinner: lastWinner }]);
+    setLastWinner(spin);
     pendingSpinRef.current = null;
     setPendingSpin(null);
+    setShowWinnerDialog(false);
     refresh();
-  }, [isQuick, isDraft, classId, sessionId, draftEligible, draftPicked, draftHistory, draftMode]);
+  };
+
+  const handleWinnerClose = () => applyWinnerChoice(false);
+  const handleWinnerRemove = () => applyWinnerChoice(true);
 
   // ─── Undo ─────────────────────────────────────────────
   const handleUndo = () => {
@@ -309,7 +313,6 @@ function App() {
           setDraftEligible(eligible);
           setDraftPicked(picked);
           setDraftHistory([]);
-          setDraftMode(updatedSession.mode);
         }
       }
       setLastWinner(action.prevLastWinner);
@@ -361,22 +364,6 @@ function App() {
     refresh();
   };
 
-  // ─── Return winner to eligible ────────────────────────
-  const handleReturnWinner = () => {
-    if (!lastWinner) return;
-    if (isQuick) {
-      quickSpinMoveBack(lastWinner.entryId);
-    } else if (isDraft) {
-      if (!draftEligible.includes(lastWinner.entryId)) {
-        setDraftEligible(prev => [...prev, lastWinner.entryId]);
-      }
-    } else if (sessionId) {
-      sessionMoveBackToEligible(sessionId, lastWinner.entryId);
-    }
-    setLastWinner({ ...lastWinner, removedFromPool: false });
-    refresh();
-  };
-
   // ─── Move back ────────────────────────────────────────
   const handleMoveBack = (id: string) => {
     if (isQuick) quickSpinMoveBack(id);
@@ -396,14 +383,6 @@ function App() {
     refresh();
   };
 
-  // ─── Mode toggle ──────────────────────────────────────
-  const handleModeChange = (newMode: 'remove' | 'keep') => {
-    if (isQuick) setQuickSpinMode(newMode);
-    else if (isDraft) setDraftMode(newMode);
-    else if (sessionId) setSessionMode(sessionId, newMode);
-    refresh();
-  };
-
   // ─── Class selection ──────────────────────────────────
   const selectClass = (clsId: string) => {
     const cls = getClass(clsId);
@@ -411,7 +390,6 @@ function App() {
     setDraftEligible(cls.students.map(s => s.id));
     setDraftPicked([]);
     setDraftHistory([]);
-    setDraftMode('remove');
     setAppMode({ type: 'class', classId: clsId, sessionId: null });
   };
 
@@ -426,7 +404,6 @@ function App() {
     setDraftEligible(cls.students.map(s => s.id));
     setDraftPicked([]);
     setDraftHistory([]);
-    setDraftMode('remove');
     setAppMode({ type: 'class', classId: appMode.classId, sessionId: null });
     setUndoStack([]);
     setLastWinner(null);
@@ -579,7 +556,7 @@ function App() {
       </header>
 
       {/* ─── Picker Layout ─── */}
-      <main className={`picker-layout ${currentMode === 'keep' ? 'hide-picked' : ''}`}>
+      <main className="picker-layout">
         <ListPanel
           title="Eligible"
           items={eligibleNames}
@@ -633,36 +610,32 @@ function App() {
             onSpinStart={handleSpinStart}
             targetId={targetId}
           />
-
-          {lastWinner && !spinning && (
-            <LastWinner
-              record={lastWinner}
-              onUndo={handleUndo}
-              onReturn={handleReturnWinner}
-              mode={currentMode}
-            />
-          )}
         </div>
 
-        {currentMode !== 'keep' && (
-          <ListPanel
-            title="Picked"
-            items={pickedNames}
-            kind="picked"
-            onMoveBack={handleMoveBack}
-          />
-        )}
+        <ListPanel
+          title="Picked"
+          items={pickedNames}
+          kind="picked"
+          onMoveBack={handleMoveBack}
+        />
       </main>
 
       {/* ─── Control Bar ─── */}
       <ControlBar
-        mode={currentMode}
-        onModeChange={handleModeChange}
         onResetRound={handleResetRound}
         onUndo={handleUndo}
         canUndo={undoStack.length > 0}
         hasPicked={hasPicked}
       />
+
+      {/* ─── Winner Dialog (WoN style) ─── */}
+      {showWinnerDialog && pendingSpin && (
+        <WinnerDialog
+          winnerName={pendingSpin.entryName}
+          onClose={handleWinnerClose}
+          onRemove={handleWinnerRemove}
+        />
+      )}
 
       {/* ─── Edit Drawer (Quick Spin only) ─── */}
       {showEditor && (

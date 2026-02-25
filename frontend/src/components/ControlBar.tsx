@@ -1,30 +1,13 @@
 type Props = {
-  mode: 'remove' | 'keep';
-  onModeChange: (mode: 'remove' | 'keep') => void;
   onResetRound: () => void;
   onUndo: () => void;
   canUndo: boolean;
   hasPicked: boolean;
 };
 
-export default function ControlBar({ mode, onModeChange, onResetRound, onUndo, canUndo, hasPicked }: Props) {
+export default function ControlBar({ onResetRound, onUndo, canUndo, hasPicked }: Props) {
   return (
     <div className="control-bar">
-      <span className="mode-label">Mode:</span>
-      <div className="mode-toggle">
-        <button
-          className={`mode-toggle-btn ${mode === 'remove' ? 'active' : ''}`}
-          onClick={() => onModeChange('remove')}
-        >
-          Remove winners
-        </button>
-        <button
-          className={`mode-toggle-btn ${mode === 'keep' ? 'active' : ''}`}
-          onClick={() => onModeChange('keep')}
-        >
-          Keep winners
-        </button>
-      </div>
       {hasPicked && (
         <button className="btn btn-secondary-dark btn-sm" onClick={onResetRound}>
           Reset Round
