@@ -13,9 +13,7 @@ type Props = {
   onSelectQuickSpin: () => void;
   onNewSession: () => void;
   onLoadSession: (sessionId: string) => void;
-  onRenameSession: () => void;
   onManageClasses: () => void;
-  sessionStatus: string;
 };
 
 export default function ClassSelector({
@@ -25,9 +23,7 @@ export default function ClassSelector({
   onSelectQuickSpin,
   onNewSession,
   onLoadSession,
-  onRenameSession,
   onManageClasses,
-  sessionStatus,
 }: Props) {
   const [showLoadPopover, setShowLoadPopover] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -57,7 +53,6 @@ export default function ClassSelector({
       onSelectQuickSpin();
     } else if (value === '__manage__') {
       onManageClasses();
-      // Reset select to current value
     } else {
       onSelectClass(value);
     }
@@ -95,7 +90,7 @@ export default function ClassSelector({
         {appMode.type === 'class' && (
           <div className="session-controls">
             <button className="btn btn-secondary btn-sm" onClick={onNewSession}>
-              New Session
+              Reset
             </button>
 
             <div className="session-load-wrapper" ref={popoverRef}>
@@ -126,17 +121,6 @@ export default function ClassSelector({
           </div>
         )}
       </div>
-
-      {appMode.type === 'class' && (
-        <div className="session-status-row">
-          <span className="session-status">{sessionStatus}</span>
-          {appMode.sessionId && (
-            <button className="btn-icon session-rename-btn" title="Rename session" onClick={onRenameSession}>
-              &#9998;
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }
