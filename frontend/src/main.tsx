@@ -106,6 +106,21 @@ function App() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showGear]);
 
+  // Query string support: ?names=Alice,Bob,Charlie loads a pre-configured quick spin
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const namesParam = params.get('names');
+    if (namesParam) {
+      const names = namesParam.split(',').map(n => decodeURIComponent(n.trim())).filter(Boolean);
+      if (names.length > 0) {
+        setQuickSpinNames(names);
+        setAppMode({ type: 'quick' });
+        // Clean URL without reloading (keep the page clean after loading)
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Hash-based routing for deep links
   useEffect(() => {
     function handleHash() {
@@ -182,7 +197,7 @@ function App() {
     prevModeRef.current = appMode;
   }, [appMode]);
 
-  // Keyboard handler (Ctrl+Z)
+  // Keyboard shortcuts (Ctrl+Z = Undo, Ctrl+Enter = Spin)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement;
@@ -191,6 +206,10 @@ function App() {
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         e.preventDefault();
         handleUndo();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSpinStart();
       }
     }
     document.addEventListener('keydown', handleKeyDown);
@@ -493,6 +512,21 @@ function App() {
     setEditorStatus('idle');
   };
 
+  // ─── Share URL ───────────────────────────────────────
+  const [showCopied, setShowCopied] = useState(false);
+
+  const handleShareUrl = () => {
+    const nameList = eligibleNames.concat(pickedNames).map(n => n.name);
+    if (nameList.length === 0) return;
+    const encoded = nameList.map(n => encodeURIComponent(n)).join(',');
+    const url = `${window.location.origin}${window.location.pathname}?names=${encoded}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+    });
+    setShowGear(false);
+  };
+
   // ─── Export / Import ──────────────────────────────────
 
   const handleExport = () => {
@@ -561,6 +595,7 @@ function App() {
           {showGear && (
             <div className="gear-dropdown">
               <button onClick={() => { setShowSettings(true); setShowGear(false); }}>Settings</button>
+              <button onClick={handleShareUrl}>Share Wheel URL</button>
               <button onClick={handleExport}>Export Data</button>
               <button onClick={handleImport}>Import Data</button>
             </div>
@@ -695,6 +730,11 @@ function App() {
         <Modal title="Settings" onClose={() => setShowSettings(false)}>
           <SettingsPanel onSettingsChanged={refresh} />
         </Modal>
+      )}
+
+      {/* Copied toast */}
+      {showCopied && (
+        <div className="toast-copied">Link copied to clipboard!</div>
       )}
     </div>
   );
