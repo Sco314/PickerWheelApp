@@ -10,6 +10,7 @@ type Props = {
 export default function ControlBar({ mode, onModeChange, onResetRound, onUndo, canUndo, hasPicked }: Props) {
   return (
     <div className="control-bar">
+      <span className="mode-label">Mode:</span>
       <div className="mode-toggle">
         <button
           className={`mode-toggle-btn ${mode === 'remove' ? 'active' : ''}`}

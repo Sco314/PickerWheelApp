@@ -9,7 +9,6 @@ import Modal from './components/Modal';
 import SpinnerWheel from './components/SpinnerWheel';
 import {
   type SpinRecord,
-  type Session,
   applyQuickSpinPick,
   applySessionPick,
   createSessionWithState,
@@ -66,8 +65,10 @@ function App() {
 
   // Modal states
   const [showClasses, setShowClasses] = useState(false);
-  const [showRenameSession, setShowRenameSession] = useState(false);
-  const [renameText, setRenameText] = useState('');
+
+  // Inline session name editing
+  const [editingSessionName, setEditingSessionName] = useState(false);
+  const [sessionNameText, setSessionNameText] = useState('');
 
   // Gear menu
   const [showGear, setShowGear] = useState(false);
@@ -110,9 +111,9 @@ function App() {
       const hash = window.location.hash.replace('#', '');
       if (hash.startsWith('/session/')) {
         const id = hash.replace('/session/', '');
-        const session = getSession(id);
-        if (session) {
-          setAppMode({ type: 'class', classId: session.classId, sessionId: id });
+        const s = getSession(id);
+        if (s) {
+          setAppMode({ type: 'class', classId: s.classId, sessionId: id });
         }
       }
     }
@@ -129,13 +130,12 @@ function App() {
         const parsed = JSON.parse(saved) as AppMode;
         if (parsed.type === 'class') {
           if (parsed.sessionId) {
-            const session = getSession(parsed.sessionId);
-            if (session) {
+            const s = getSession(parsed.sessionId);
+            if (s) {
               setAppMode(parsed);
               return;
             }
           }
-          // If classId is valid, go to class draft mode
           const cls = getClass(parsed.classId);
           if (cls) {
             setAppMode({ type: 'class', classId: parsed.classId, sessionId: null });
@@ -147,12 +147,12 @@ function App() {
         }
       } catch { /* ignore */ }
     }
-    // Also migrate old lastMode key
+    // Migrate old lastMode key
     const oldMode = localStorage.getItem('lastMode');
     if (oldMode && oldMode !== 'quick') {
-      const session = getSession(oldMode);
-      if (session) {
-        setAppMode({ type: 'class', classId: session.classId, sessionId: session.id });
+      const s = getSession(oldMode);
+      if (s) {
+        setAppMode({ type: 'class', classId: s.classId, sessionId: s.id });
       }
       localStorage.removeItem('lastMode');
     }
@@ -177,6 +177,7 @@ function App() {
     if (modeChanged) {
       setUndoStack([]);
       setLastWinner(null);
+      setEditingSessionName(false);
     }
     prevModeRef.current = appMode;
   }, [appMode]);
@@ -219,6 +220,16 @@ function App() {
     pickedNames = resolveNames(session.classId, session.picked);
   }
 
+  // Session display name
+  const getSessionDisplayName = (): string => {
+    if (appMode.type !== 'class') return '';
+    if (!appMode.sessionId || !session) return 'New session';
+    if (session.name) return session.name;
+    const date = new Date(session.lastSpinAt || session.createdAt);
+    const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return `${dateStr} — ${session.history.length} picks`;
+  };
+
   // ─── Spin (deferred mutation) ─────────────────────────
   const handleSpinStart = useCallback(() => {
     if (spinning) return;
@@ -254,19 +265,16 @@ function App() {
     if (isQuick) {
       applyQuickSpinPick(spin);
     } else if (isDraft && classId) {
-      // Apply to draft state in-memory
       const newEligible = spin.removedFromPool
         ? draftEligible.filter(id => id !== spin.entryId)
         : [...draftEligible];
       const newPicked = [...draftPicked, spin.entryId];
       const newHistory = [...draftHistory, spin];
 
-      // Persist as session on first spin
       const newSession = createSessionWithState(
         classId, newEligible, newPicked, newHistory, draftMode,
       );
       setAppMode({ type: 'class', classId, sessionId: newSession.id });
-      // Clear draft state
       setDraftEligible([]);
       setDraftPicked([]);
       setDraftHistory([]);
@@ -289,11 +297,9 @@ function App() {
       if (isQuick) {
         undoQuickSpin(action.record);
       } else if (isDraft && classId) {
-        // Undo draft spin — shouldn't happen since first spin makes it a session
-        // but handle gracefully
+        // shouldn't happen since first spin makes it a session
       } else if (sessionId) {
         undoSessionSpin(sessionId, action.record);
-        // If undoing the only spin, delete session and go back to draft
         const updatedSession = getSession(sessionId);
         if (updatedSession && updatedSession.history.length === 0 && classId) {
           const eligible = updatedSession.eligible;
@@ -432,18 +438,19 @@ function App() {
     setAppMode({ type: 'class', classId: s.classId, sessionId: loadSessionId });
   };
 
-  const handleRenameSession = () => {
+  // ─── Inline session name editing ──────────────────────
+  const startEditSessionName = () => {
     if (!session) return;
-    setRenameText(session.name || '');
-    setShowRenameSession(true);
+    setSessionNameText(session.name || '');
+    setEditingSessionName(true);
   };
 
-  const handleRenameSubmit = () => {
+  const saveSessionName = () => {
     if (sessionId) {
-      renameSession(sessionId, renameText.trim());
+      renameSession(sessionId, sessionNameText.trim());
       refresh();
     }
-    setShowRenameSession(false);
+    setEditingSessionName(false);
   };
 
   // ─── Editor (Quick Spin) ──────────────────────────────
@@ -459,9 +466,9 @@ function App() {
   const applyEditorChanges = (text: string, force?: boolean) => {
     const names = text.split(/[,\n]/).map(n => n.trim()).filter(Boolean);
     const qs = getQuickSpin();
-    const hasPicked = qs.picked.length > 0;
+    const hasPickedItems = qs.picked.length > 0;
 
-    if (hasPicked && !force) {
+    if (hasPickedItems && !force) {
       setShowEditConfirm(true);
       return;
     }
@@ -537,17 +544,6 @@ function App() {
     setShowGear(false);
   };
 
-  // ─── Session status ───────────────────────────────────
-  const getSessionStatus = (): string => {
-    if (appMode.type !== 'class') return '';
-    if (!appMode.sessionId) return 'New session';
-    if (!session) return '';
-    const date = new Date(session.lastSpinAt || session.createdAt);
-    const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    const name = session.name ? `${session.name} — ` : '';
-    return `${name}${dateStr} — ${session.history.length} picks`;
-  };
-
   const hasPicked = pickedNames.length > 0;
   const classes = getClasses();
 
@@ -564,9 +560,7 @@ function App() {
           onSelectQuickSpin={selectQuickSpin}
           onNewSession={handleNewSession}
           onLoadSession={handleLoadSession}
-          onRenameSession={handleRenameSession}
           onManageClasses={() => setShowClasses(true)}
-          sessionStatus={getSessionStatus()}
         />
 
         <div className="header-spacer" />
@@ -584,8 +578,8 @@ function App() {
         </div>
       </header>
 
-      {/* ─── Picker Layout (always visible) ─── */}
-      <main className="picker-layout">
+      {/* ─── Picker Layout ─── */}
+      <main className={`picker-layout ${currentMode === 'keep' ? 'hide-picked' : ''}`}>
         <ListPanel
           title="Eligible"
           items={eligibleNames}
@@ -602,6 +596,36 @@ function App() {
         />
 
         <div className="center-column">
+          {/* Session label — above wheel */}
+          {appMode.type === 'class' && (
+            <div className="session-label">
+              <span className="session-label-prefix">Session:</span>
+              {editingSessionName ? (
+                <input
+                  className="session-label-input"
+                  value={sessionNameText}
+                  onChange={e => setSessionNameText(e.target.value)}
+                  onBlur={saveSessionName}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') saveSessionName();
+                    if (e.key === 'Escape') setEditingSessionName(false);
+                  }}
+                  placeholder="Name this session..."
+                  autoFocus
+                />
+              ) : (
+                <span
+                  className="session-label-name"
+                  onClick={session ? startEditSessionName : undefined}
+                  title={session ? 'Click to rename' : undefined}
+                >
+                  {getSessionDisplayName()}
+                  {session && <span className="session-edit-hint"> &#9998;</span>}
+                </span>
+              )}
+            </div>
+          )}
+
           <SpinnerWheel
             names={eligibleNames}
             onSpinComplete={handleSpinComplete}
@@ -620,12 +644,14 @@ function App() {
           )}
         </div>
 
-        <ListPanel
-          title="Picked"
-          items={pickedNames}
-          kind="picked"
-          onMoveBack={handleMoveBack}
-        />
+        {currentMode !== 'keep' && (
+          <ListPanel
+            title="Picked"
+            items={pickedNames}
+            kind="picked"
+            onMoveBack={handleMoveBack}
+          />
+        )}
       </main>
 
       {/* ─── Control Bar ─── */}
@@ -676,30 +702,6 @@ function App() {
       {showClasses && (
         <Modal title="My Classes" onClose={() => { setShowClasses(false); refresh(); }}>
           <ClassManager />
-        </Modal>
-      )}
-
-      {showRenameSession && (
-        <Modal title="Rename Session" onClose={() => setShowRenameSession(false)}>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              type="text"
-              value={renameText}
-              onChange={e => setRenameText(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleRenameSubmit()}
-              placeholder="Session name (optional)"
-              autoFocus
-              style={{
-                flex: 1,
-                padding: '0.5rem 0.75rem',
-                border: '2px solid #ddd',
-                borderRadius: '8px',
-                fontSize: '0.9rem',
-                outline: 'none',
-              }}
-            />
-            <button className="btn btn-primary" onClick={handleRenameSubmit}>Save</button>
-          </div>
         </Modal>
       )}
     </div>
