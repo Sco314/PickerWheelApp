@@ -66,6 +66,25 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
   const namesRef = useRef(names);
   namesRef.current = names;
 
+  // Cached canvas dimensions — updated on mount and resize only (not every frame).
+  // Avoids getBoundingClientRect() layout reflow at 60fps during animation.
+  const dimensionsRef = useRef<{ w: number; h: number; dpr: number } | null>(null);
+
+  useEffect(() => {
+    function updateDimensions() {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      dimensionsRef.current = { w: rect.width, h: rect.height, dpr };
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+    }
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
+
   // Compute colors once per name-count change — ensures no adjacent segments share a color
   const segmentColors = useMemo(() => assignColors(names.length), [names.length]);
 
@@ -80,14 +99,11 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-
-    const w = rect.width;
-    const h = rect.height;
+    const dims = dimensionsRef.current;
+    if (!dims) return;
+    const { w, h, dpr } = dims;
+    // Reset transform (absolute, not cumulative) and clear — avoids canvas resize per frame
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const cx = w / 2;
     const cy = h / 2;
     const radius = Math.min(cx, cy) - 10;
