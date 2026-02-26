@@ -8,6 +8,7 @@ import Modal from './components/Modal';
 import SettingsPanel from './components/SettingsPanel';
 import SpinnerWheel from './components/SpinnerWheel';
 import WinnerDialog from './components/WinnerDialog';
+import ResultsPanel from './components/ResultsPanel';
 import { getAppSettings } from './services/settings';
 import {
   type SpinRecord,
@@ -71,6 +72,7 @@ function App() {
   const [showClasses, setShowClasses] = useState(false);
   const [showWinnerDialog, setShowWinnerDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showResults, setShowResults] = useState(false);
 
   // Inline session name editing
   const [editingSessionName, setEditingSessionName] = useState(false);
@@ -590,6 +592,15 @@ function App() {
 
   const hasPicked = pickedNames.length > 0;
   const classes = getClasses();
+  const appSettings = getAppSettings();
+
+  // Gather spin history for results panel
+  const spinHistory: SpinRecord[] = (() => {
+    if (isQuick) return getQuickSpin().history;
+    if (session) return session.history;
+    if (isDraft) return draftHistory;
+    return [];
+  })();
 
   return (
     <div className="app">
@@ -616,6 +627,7 @@ function App() {
           {showGear && (
             <div className="gear-dropdown">
               <button onClick={() => { setShowSettings(true); setShowGear(false); }}>Settings</button>
+              <button onClick={() => { setShowResults(true); setShowGear(false); }}>Results</button>
               <button onClick={handleShareUrl}>Share Wheel URL</button>
               <button onClick={handleExport}>Export Data</button>
               <button onClick={handleImport}>Import Data</button>
@@ -678,6 +690,9 @@ function App() {
             spinning={spinning}
             onSpinStart={handleSpinStart}
             targetId={targetId}
+            spinDuration={appSettings.spinDuration}
+            spinEasing={appSettings.spinEasing}
+            idleSpin={appSettings.idleSpin}
           />
         </div>
 
@@ -750,6 +765,15 @@ function App() {
       {showSettings && (
         <Modal title="Settings" onClose={() => setShowSettings(false)}>
           <SettingsPanel onSettingsChanged={refresh} />
+        </Modal>
+      )}
+
+      {showResults && (
+        <Modal title="Results" onClose={() => setShowResults(false)}>
+          <ResultsPanel
+            history={spinHistory}
+            sessionName={isQuick ? 'Quick Spin' : getSessionDisplayName()}
+          />
         </Modal>
       )}
 

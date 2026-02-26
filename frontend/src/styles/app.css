@@ -746,6 +746,91 @@ body {
   text-align: right;
 }
 
+/* ─── Settings: Select + Divider ───────────────────── */
+.settings-select {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+}
+.settings-select select {
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 2px solid #ddd;
+  font-size: 0.85rem;
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+  min-width: 140px;
+}
+.settings-select select:focus { border-color: #667eea; }
+.settings-divider {
+  height: 1px;
+  background: #eee;
+  margin: 0.25rem 0;
+}
+
+/* ─── Results Panel ────────────────────────────────── */
+.results-panel {
+  width: 100%;
+}
+.results-history, .results-frequency {
+  max-height: 360px;
+  overflow-y: auto;
+}
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.results-table th {
+  text-align: left;
+  font-weight: 700;
+  color: #888;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 0.5rem;
+  border-bottom: 2px solid #eee;
+  position: sticky;
+  top: 0;
+  background: #fff;
+}
+.results-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+.results-table tbody tr:hover { background: #f8f8f8; }
+.results-num { color: #999; font-size: 0.8rem; width: 2rem; }
+.results-name { font-weight: 600; }
+.results-action { font-size: 0.8rem; }
+.results-time { color: #888; font-size: 0.8rem; white-space: nowrap; }
+.results-count { text-align: center; font-weight: 600; }
+.results-pct { text-align: right; color: #888; font-size: 0.8rem; min-width: 3rem; }
+.action-removed { color: #e74c3c; }
+.action-kept { color: #27ae60; }
+.results-bar-cell { width: 40%; }
+.results-bar {
+  height: 14px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 3px;
+  min-width: 2px;
+  transition: width 0.3s;
+}
+.results-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.5rem 0;
+  margin-top: 0.5rem;
+  border-top: 1px solid #eee;
+}
+.results-total {
+  font-size: 0.85rem;
+  color: #888;
+  font-weight: 600;
+}
+
 /* ─── Credits ───────────────────────────────────────── */
 .credits-section {
   margin-bottom: 1rem;

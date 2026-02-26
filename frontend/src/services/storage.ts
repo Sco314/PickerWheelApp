@@ -57,6 +57,15 @@ function genId(): string {
   return crypto.randomUUID();
 }
 
+/** Cryptographically secure random index in [0, length).
+ *  Uses Web Crypto API; modulo bias is negligible for classroom-sized lists. */
+export function secureRandomIndex(length: number): number {
+  if (length <= 0) return 0;
+  const array = new Uint32Array(1);
+  crypto.getRandomValues(array);
+  return array[0] % length;
+}
+
 const DEFAULT_QUICK_SPIN_NAMES = ['Abby', 'Bess', 'Collin', 'Della', 'Emmett', 'Finn', 'Greer', 'Holly'];
 
 function makeQuickSpin(names: string[]): QuickSpin {
@@ -292,7 +301,7 @@ export function pickRandomFromSession(sessionId: string): SpinRecord | null {
   if (!session || session.eligible.length === 0) return null;
 
   const cls = data.classes.find(c => c.id === session.classId);
-  const idx = Math.floor(Math.random() * session.eligible.length);
+  const idx = secureRandomIndex(session.eligible.length);
   const winnerId = session.eligible[idx];
   const winnerName = cls?.students.find(s => s.id === winnerId)?.name ?? '(unknown)';
 
@@ -309,7 +318,7 @@ export function pickRandomFromQuickSpin(): SpinRecord | null {
   const qs = data.quickSpin!;
   if (qs.eligible.length === 0) return null;
 
-  const idx = Math.floor(Math.random() * qs.eligible.length);
+  const idx = secureRandomIndex(qs.eligible.length);
   const winnerId = qs.eligible[idx];
   const winnerName = qs.items.find(i => i.id === winnerId)?.name ?? '(unknown)';
 
@@ -329,7 +338,7 @@ export function pickRandomFromDraft(
   if (eligible.length === 0) return null;
 
   const cls = getClass(classId);
-  const idx = Math.floor(Math.random() * eligible.length);
+  const idx = secureRandomIndex(eligible.length);
   const winnerId = eligible[idx];
   const winnerName = cls?.students.find(s => s.id === winnerId)?.name ?? '(unknown)';
 

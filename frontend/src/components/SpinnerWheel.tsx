@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { playTick } from '../services/sounds';
+import type { SpinEasing } from '../services/settings';
 
 const LARGE_LIST_THRESHOLD = 50; // Show name-at-pointer overlay when segment count exceeds this
+
+// ─── Easing functions ──────────────────────────────────
+function easeOutCubic(t: number): number { return 1 - Math.pow(1 - t, 3); }
+function easeOutQuart(t: number): number { return 1 - Math.pow(1 - t, 4); }
+function easeOutExpo(t: number): number { return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); }
+
+const EASING_FNS: Record<SpinEasing, (t: number) => number> = {
+  cubic: easeOutCubic,
+  quart: easeOutQuart,
+  expo: easeOutExpo,
+};
 
 const PALETTE = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
@@ -15,7 +27,7 @@ const PALETTE = [
  * Uses a greedy approach: for each segment, pick the next palette color that differs
  * from its neighbor(s). For the last segment, also avoids the first segment's color.
  */
-function assignColors(count: number): string[] {
+export function assignColors(count: number): string[] {
   if (count === 0) return [];
   if (count === 1) return [PALETTE[0]];
 
@@ -53,12 +65,19 @@ type Props = {
   spinning: boolean;
   onSpinStart: () => void;
   targetId: string | null;
+  spinDuration?: number;       // seconds (default 4)
+  spinEasing?: SpinEasing;     // easing preset (default 'cubic')
+  idleSpin?: boolean;          // gentle idle rotation (default false)
 };
 
-export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinStart, targetId }: Props) {
+export default function SpinnerWheel({
+  names, onSpinComplete, spinning, onSpinStart, targetId,
+  spinDuration = 4, spinEasing = 'cubic', idleSpin = false,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
-  const angleRef = useRef(0);
+  // Random starting angle so the wheel doesn't always begin at the same position
+  const angleRef = useRef(Math.random() * Math.PI * 2);
   const lastPegIndexRef = useRef(-1);
   // Stable refs to prevent animation effect restart mid-spin
   const onSpinCompleteRef = useRef(onSpinComplete);
@@ -281,18 +300,16 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
 
     const startAngle = angleRef.current;
     const totalRotation = targetAngle - startAngle;
-    const duration = 3000 + Math.random() * 1000;
+    // Configurable duration with ±12.5% jitter centred on the chosen value
+    const duration = spinDuration * 1000 * (0.875 + Math.random() * 0.25);
     const startTime = performance.now();
     lastPegIndexRef.current = -1;
-
-    function easeOutCubic(t: number): number {
-      return 1 - Math.pow(1 - t, 3);
-    }
+    const easeFn = EASING_FNS[spinEasing] || easeOutCubic;
 
     function animate(now: number) {
       const elapsed = now - startTime;
       const t = Math.min(elapsed / duration, 1);
-      const eased = easeOutCubic(t);
+      const eased = easeFn(t);
       const currentAngle = startAngle + totalRotation * eased;
 
       // Tick sound: detect when a peg crosses the pointer (top, -PI/2)
@@ -320,7 +337,25 @@ export default function SpinnerWheel({ names, onSpinComplete, spinning, onSpinSt
     return () => {
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };
-  }, [spinning, targetId]);
+  }, [spinning, targetId, spinDuration, spinEasing]);
+
+  // Idle spin: gentle constant rotation when not spinning
+  useEffect(() => {
+    if (!idleSpin || spinning) return;
+    let rafId = 0;
+    let lastTime = performance.now();
+    const IDLE_SPEED = 0.15; // radians per second
+
+    function idleAnimate(now: number) {
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+      angleRef.current += IDLE_SPEED * dt;
+      drawRef.current(angleRef.current);
+      rafId = requestAnimationFrame(idleAnimate);
+    }
+    rafId = requestAnimationFrame(idleAnimate);
+    return () => cancelAnimationFrame(rafId);
+  }, [idleSpin, spinning]);
 
   return (
     <div className="spinner-container">
