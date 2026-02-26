@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { playTick } from '../services/sounds';
 import type { SpinEasing } from '../services/settings';
+import type { WheelEntry } from '../services/storage';
 
 const LARGE_LIST_THRESHOLD = 50; // Show name-at-pointer overlay when segment count exceeds this
 
@@ -59,8 +60,29 @@ export function assignColors(count: number): string[] {
   return result;
 }
 
+/** Compute cumulative angles for weighted segments. */
+function computeSliceAngles(entries: WheelEntry[]): { sliceAngles: number[]; cumAngles: number[] } {
+  const totalWeight = entries.reduce((sum, e) => sum + (e.weight ?? 1), 0);
+  const sliceAngles = entries.map(e => ((e.weight ?? 1) / totalWeight) * Math.PI * 2);
+  const cumAngles: number[] = [];
+  let cum = 0;
+  for (const a of sliceAngles) {
+    cum += a;
+    cumAngles.push(cum);
+  }
+  return { sliceAngles, cumAngles };
+}
+
+/** Find which segment a given angle falls into (given cumulative angles). */
+function segmentAtAngle(relAngle: number, cumAngles: number[]): number {
+  for (let i = 0; i < cumAngles.length; i++) {
+    if (relAngle < cumAngles[i]) return i;
+  }
+  return cumAngles.length - 1;
+}
+
 type Props = {
-  names: { id: string; name: string }[];
+  names: WheelEntry[];
   onSpinComplete: (id: string) => void;
   spinning: boolean;
   onSpinStart: () => void;
@@ -68,11 +90,14 @@ type Props = {
   spinDuration?: number;       // seconds (default 4)
   spinEasing?: SpinEasing;     // easing preset (default 'cubic')
   idleSpin?: boolean;          // gentle idle rotation (default false)
+  manualStop?: boolean;        // show stop button during spin (default false)
+  onManualStop?: (winnerId: string) => void; // called when manual stop resolves
 };
 
 export default function SpinnerWheel({
   names, onSpinComplete, spinning, onSpinStart, targetId,
   spinDuration = 4, spinEasing = 'cubic', idleSpin = false,
+  manualStop = false, onManualStop,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
@@ -82,11 +107,14 @@ export default function SpinnerWheel({
   // Stable refs to prevent animation effect restart mid-spin
   const onSpinCompleteRef = useRef(onSpinComplete);
   onSpinCompleteRef.current = onSpinComplete;
+  const onManualStopRef = useRef(onManualStop);
+  onManualStopRef.current = onManualStop;
   const namesRef = useRef(names);
   namesRef.current = names;
+  // Manual stop flag — when true, the animation effect switches to deceleration
+  const stopRequestedRef = useRef(false);
 
   // Cached canvas dimensions — updated on mount and resize only (not every frame).
-  // Avoids getBoundingClientRect() layout reflow at 60fps during animation.
   const dimensionsRef = useRef<{ w: number; h: number; dpr: number } | null>(null);
 
   useEffect(() => {
@@ -107,6 +135,9 @@ export default function SpinnerWheel({
   // Compute colors once per name-count change — ensures no adjacent segments share a color
   const segmentColors = useMemo(() => assignColors(names.length), [names.length]);
 
+  // Precompute slice angles for weighted segments
+  const { sliceAngles, cumAngles } = useMemo(() => computeSliceAngles(names), [names]);
+
   // Large list: track which name is under the pointer
   const [nameAtPointer, setNameAtPointer] = useState('');
   const isLargeList = names.length >= LARGE_LIST_THRESHOLD;
@@ -121,7 +152,6 @@ export default function SpinnerWheel({
     const dims = dimensionsRef.current;
     if (!dims) return;
     const { w, h, dpr } = dims;
-    // Reset transform (absolute, not cumulative) and clear — avoids canvas resize per frame
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const cx = w / 2;
     const cy = h / 2;
@@ -155,56 +185,62 @@ export default function SpinnerWheel({
       return;
     }
 
-    const sliceAngle = (Math.PI * 2) / names.length;
-
+    // Draw weighted segments
+    let cumAngle = 0;
     for (let i = 0; i < names.length; i++) {
-      const startAngle = rotation + i * sliceAngle;
-      const endAngle = startAngle + sliceAngle;
+      const segAngle = sliceAngles[i];
+      const startAngle = rotation + cumAngle;
+      const endAngle = startAngle + segAngle;
 
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.arc(cx, cy, radius, startAngle, endAngle);
       ctx.closePath();
-      ctx.fillStyle = segmentColors[i] || PALETTE[i % PALETTE.length];
+      // Per-entry color override, then palette color, then fallback
+      ctx.fillStyle = names[i].color || segmentColors[i] || PALETTE[i % PALETTE.length];
       ctx.fill();
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Skip text labels for large lists — they'd be unreadable
+      // Skip text labels for large lists
       if (names.length < LARGE_LIST_THRESHOLD) {
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.rotate(startAngle + sliceAngle / 2);
+        ctx.rotate(startAngle + segAngle / 2);
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#333';
         ctx.font = `bold ${Math.min(16, 300 / names.length)}px Arial`;
         const maxTextWidth = radius - 30;
-        let label = names[i].name;
+        // Use displayLabel if available, otherwise name
+        let label = names[i].displayLabel || names[i].name;
         while (ctx.measureText(label).width > maxTextWidth && label.length > 1) {
           label = label.slice(0, -1);
         }
-        if (label !== names[i].name) label += '\u2026';
+        const fullLabel = names[i].displayLabel || names[i].name;
+        if (label !== fullLabel) label += '\u2026';
         ctx.fillText(label, radius - 15, 0);
         ctx.restore();
       }
+
+      cumAngle += segAngle;
     }
 
     // Pegs between segments on the rim
-    if (names.length > 0) {
-      for (let i = 0; i < names.length; i++) {
-        const pegAngle = rotation + i * sliceAngle;
-        const pegX = cx + Math.cos(pegAngle) * (radius - 2);
-        const pegY = cy + Math.sin(pegAngle) * (radius - 2);
-        ctx.beginPath();
-        ctx.arc(pegX, pegY, 3, 0, Math.PI * 2);
-        ctx.fillStyle = '#fff';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
+    cumAngle = 0;
+    for (let i = 0; i < names.length; i++) {
+      const pegAngle = rotation + cumAngle;
+      const pegX = cx + Math.cos(pegAngle) * (radius - 2);
+      const pegY = cy + Math.sin(pegAngle) * (radius - 2);
+      ctx.beginPath();
+      ctx.arc(pegX, pegY, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      cumAngle += sliceAngles[i];
     }
 
     // Center circle — acts as SPIN button
@@ -227,7 +263,7 @@ export default function SpinnerWheel({
     ctx.textBaseline = 'middle';
     ctx.fillText('SPIN', cx, cy);
 
-    // Pointer arrow (top, pointing down — WoN style)
+    // Pointer arrow (top, pointing down)
     const pointerX = cx;
     const pointerY = cy - radius - 2;
     ctx.beginPath();
@@ -244,16 +280,15 @@ export default function SpinnerWheel({
     // Compute which name is under the pointer (pointer is at -PI/2 = top)
     if (names.length >= LARGE_LIST_THRESHOLD) {
       const pointerAngle = -Math.PI / 2;
-      // Normalize: which segment does the pointer land on?
       const relAngle = ((pointerAngle - rotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-      const idx = Math.floor(relAngle / sliceAngle) % names.length;
+      const idx = segmentAtAngle(relAngle, cumAngles);
       const newName = names[idx]?.name || '';
       if (newName !== nameAtPointerRef.current) {
         nameAtPointerRef.current = newName;
         setNameAtPointer(newName);
       }
     }
-  }, [names, segmentColors]);
+  }, [names, segmentColors, sliceAngles, cumAngles]);
 
   const drawRef = useRef(draw);
   drawRef.current = draw;
@@ -270,7 +305,6 @@ export default function SpinnerWheel({
     const cy = rect.height / 2;
     const radius = Math.min(cx, cy) - 10;
     const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
-    // Only trigger on clicks within the wheel area
     if (dist <= radius) {
       onSpinStart();
     }
@@ -282,7 +316,6 @@ export default function SpinnerWheel({
   }, [draw]);
 
   // Animation effect — depends ONLY on spinning + targetId.
-  // names/draw/onSpinComplete are read from refs to prevent restart mid-spin.
   useEffect(() => {
     if (!spinning || !targetId) return;
 
@@ -293,29 +326,73 @@ export default function SpinnerWheel({
     const targetIndex = currentNames.findIndex(n => n.id === targetId);
     if (targetIndex === -1) return;
 
-    const sliceAngle = (Math.PI * 2) / currentNames.length;
+    // Weighted slice angles for animation
+    const { sliceAngles: animSlices, cumAngles: animCum } = computeSliceAngles(currentNames);
+    const midOfTarget = (animCum[targetIndex] - animSlices[targetIndex] / 2);
     const extraSpins = 5 + Math.random() * 3;
-    // Align target segment with top pointer (-PI/2)
-    const targetAngle = -Math.PI / 2 - (targetIndex * sliceAngle + sliceAngle / 2) - extraSpins * Math.PI * 2;
+    const targetAngle = -Math.PI / 2 - midOfTarget - extraSpins * Math.PI * 2;
 
     const startAngle = angleRef.current;
     const totalRotation = targetAngle - startAngle;
-    // Configurable duration with ±12.5% jitter centred on the chosen value
     const duration = spinDuration * 1000 * (0.875 + Math.random() * 0.25);
     const startTime = performance.now();
     lastPegIndexRef.current = -1;
+    stopRequestedRef.current = false;
     const easeFn = EASING_FNS[spinEasing] || easeOutCubic;
 
+    // Precompute cumulative peg positions for weighted tick detection
+    const pegCum = animCum.map(a => a / (Math.PI * 2));
+
     function animate(now: number) {
+      // Manual stop: find segment at pointer, decelerate to its center
+      if (stopRequestedRef.current) {
+        stopRequestedRef.current = false;
+        const pointerAngle = -Math.PI / 2;
+        const curAngle = angleRef.current;
+        const relAngle = ((pointerAngle - curAngle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+        const stopIdx = segmentAtAngle(relAngle, animCum);
+        const stopMid = (animCum[stopIdx] - animSlices[stopIdx] / 2);
+        const snapAngle = -Math.PI / 2 - stopMid;
+        // Compute how much rotation to reach the snap — find nearest equivalent
+        const diff = snapAngle - curAngle;
+        const snapTarget = curAngle + diff - Math.ceil(diff / (Math.PI * 2)) * Math.PI * 2;
+
+        const snapStart = performance.now();
+        const snapDuration = 500;
+        const snapStartAngle = curAngle;
+        const snapRotation = snapTarget - curAngle;
+
+        function snapAnimate(snapNow: number) {
+          const st = Math.min((snapNow - snapStart) / snapDuration, 1);
+          const se = easeOutCubic(st);
+          const a = snapStartAngle + snapRotation * se;
+          angleRef.current = a;
+          currentDraw(a);
+          if (st < 1) {
+            animRef.current = requestAnimationFrame(snapAnimate);
+          } else {
+            const handler = onManualStopRef.current || onSpinCompleteRef.current;
+            handler(currentNames[stopIdx].id);
+          }
+        }
+        animRef.current = requestAnimationFrame(snapAnimate);
+        return;
+      }
+
       const elapsed = now - startTime;
       const t = Math.min(elapsed / duration, 1);
       const eased = easeFn(t);
       const currentAngle = startAngle + totalRotation * eased;
 
-      // Tick sound: detect when a peg crosses the pointer (top, -PI/2)
+      // Tick sound: detect when a peg crosses the pointer
       if (currentNames.length > 0) {
-        const normalizedAngle = ((currentAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-        const pegIndex = Math.floor(normalizedAngle / sliceAngle);
+        const norm = ((currentAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        const fracPos = norm / (Math.PI * 2);
+        let pegIndex = 0;
+        for (let i = 0; i < pegCum.length; i++) {
+          if (fracPos < pegCum[i]) { pegIndex = i; break; }
+          pegIndex = i + 1;
+        }
         if (pegIndex !== lastPegIndexRef.current) {
           lastPegIndexRef.current = pegIndex;
           playTick();
@@ -338,6 +415,13 @@ export default function SpinnerWheel({
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };
   }, [spinning, targetId, spinDuration, spinEasing]);
+
+  // Manual stop handler
+  const handleStop = useCallback(() => {
+    if (spinning) {
+      stopRequestedRef.current = true;
+    }
+  }, [spinning]);
 
   // Idle spin: gentle constant rotation when not spinning
   useEffect(() => {
@@ -369,14 +453,22 @@ export default function SpinnerWheel({
         onClick={handleCanvasClick}
         style={{ cursor: spinning || names.length === 0 ? 'default' : 'pointer' }}
       />
-      <button
-        className="spin-button"
-        onClick={onSpinStart}
-        disabled={spinning || names.length === 0}
-        title="Ctrl+Enter"
-      >
-        {spinning ? 'Spinning...' : 'SPIN!'}
-      </button>
+      <div className="spin-buttons">
+        {spinning && manualStop ? (
+          <button className="spin-button stop-button" onClick={handleStop}>
+            STOP!
+          </button>
+        ) : (
+          <button
+            className="spin-button"
+            onClick={onSpinStart}
+            disabled={spinning || names.length === 0}
+            title="Ctrl+Enter"
+          >
+            {spinning ? 'Spinning...' : 'SPIN!'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

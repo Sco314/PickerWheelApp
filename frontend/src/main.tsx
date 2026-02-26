@@ -8,10 +8,12 @@ import Modal from './components/Modal';
 import SettingsPanel from './components/SettingsPanel';
 import SpinnerWheel from './components/SpinnerWheel';
 import WinnerDialog from './components/WinnerDialog';
+import AdvancedEditor from './components/AdvancedEditor';
 import ResultsPanel from './components/ResultsPanel';
 import { getAppSettings } from './services/settings';
 import {
   type SpinRecord,
+  type WheelEntry,
   applyQuickSpinPick,
   applySessionPick,
   createSessionWithState,
@@ -39,6 +41,7 @@ import {
   undoSessionSpin,
   restoreQuickSpinState,
   restoreSessionState,
+  updateQuickSpinItem,
 } from './services/storage';
 import './styles/app.css';
 
@@ -59,7 +62,7 @@ function App() {
   const currentSpinRef = useRef<{
     id: number;
     record: SpinRecord;
-    eligibleSnapshot: { id: string; name: string }[];
+    eligibleSnapshot: WheelEntry[];
   } | null>(null);
   const [, setTick] = useState(0);
 
@@ -84,6 +87,7 @@ function App() {
 
   // Edit drawer (Quick Spin only)
   const [showEditor, setShowEditor] = useState(false);
+  const [editorTab, setEditorTab] = useState<'text' | 'table'>('text');
   const [editorText, setEditorText] = useState('');
   const [editorStatus, setEditorStatus] = useState<'idle' | 'editing' | 'applied'>('idle');
   const [showEditConfirm, setShowEditConfirm] = useState(false);
@@ -207,8 +211,8 @@ function App() {
   // Derive display data
   const session = sessionId ? getSession(sessionId) : null;
 
-  let eligibleNames: { id: string; name: string }[] = [];
-  let pickedNames: { id: string; name: string }[] = [];
+  let eligibleNames: WheelEntry[] = [];
+  let pickedNames: WheelEntry[] = [];
 
   if (isQuick) {
     const qs = getQuickSpin();
@@ -258,17 +262,40 @@ function App() {
 
   // Animation finished — ref-based so it always reads fresh closure state.
   // The stable useCallback wrapper just delegates to the ref.
+  // Handles both normal completion and manual stop (different winnerId).
   const handleSpinCompleteRef = useRef<(winnerId: string) => void>(() => {});
   handleSpinCompleteRef.current = (winnerId: string) => {
     const spin = currentSpinRef.current;
-    if (!spin || spin.record.entryId !== winnerId) {
-      // Stale callback from a previous/cancelled spin — discard
+    if (!spin) {
       spinningRef.current = false;
       setSpinning(false);
       return;
     }
+    // If winnerId differs (manual stop), update record to match actual winner
+    if (spin.record.entryId !== winnerId) {
+      const entry = spin.eligibleSnapshot.find(n => n.id === winnerId);
+      if (!entry) {
+        spinningRef.current = false;
+        setSpinning(false);
+        return;
+      }
+      spin.record = {
+        entryId: winnerId,
+        entryName: entry.name,
+        timestamp: Date.now(),
+        removedFromPool: false,
+      };
+    }
     spinningRef.current = false;
     setSpinning(false);
+
+    // Determine current mode for accumulation support
+    const currentMode = isQuick ? getQuickSpin().mode
+      : session?.mode ?? 'remove';
+    if (currentMode === 'accumulate') {
+      applyWinnerChoice(false); // auto-keep, no dialog
+      return;
+    }
 
     const settings = getAppSettings();
     if (settings.autoRemoveWinners) {
@@ -437,6 +464,24 @@ function App() {
     refresh();
   };
 
+  // ─── Bulk remove from eligible ──────────────────────
+  const handleBulkRemove = (ids: string[]) => {
+    if (isQuick) {
+      for (const id of ids) quickSpinRemove(id);
+    } else if (isDraft) {
+      setDraftEligible(prev => prev.filter(eid => !ids.includes(eid)));
+    } else if (sessionId) {
+      for (const id of ids) sessionRemoveFromEligible(sessionId, id);
+    }
+    refresh();
+  };
+
+  // ─── Advanced editor update ────────────────────────
+  const handleAdvancedUpdate = (itemId: string, patch: Parameters<typeof updateQuickSpinItem>[1]) => {
+    updateQuickSpinItem(itemId, patch);
+    refresh();
+  };
+
   // ─── Class selection ──────────────────────────────────
   const selectClass = (clsId: string) => {
     const cls = getClass(clsId);
@@ -490,6 +535,7 @@ function App() {
     const qs = getQuickSpin();
     setEditorText(qs.items.map(i => i.name).join('\n'));
     setShowEditor(true);
+    setEditorTab('text');
     setEditorStatus('idle');
     setShowEditConfirm(false);
   };
@@ -643,6 +689,7 @@ function App() {
           items={eligibleNames}
           kind="eligible"
           onRemove={handleRemove}
+          onBulkRemove={handleBulkRemove}
           onResetRound={handleResetRound}
           headerAction={
             isQuick ? (
@@ -693,6 +740,7 @@ function App() {
             spinDuration={appSettings.spinDuration}
             spinEasing={appSettings.spinEasing}
             idleSpin={appSettings.idleSpin}
+            manualStop={appSettings.manualStop}
           />
         </div>
 
@@ -727,28 +775,52 @@ function App() {
           <div className="drawer-panel" onClick={e => e.stopPropagation()}>
             <div className="drawer-header">
               <h2>Edit Names</h2>
+              <div className="drawer-tabs">
+                <button
+                  className={`drawer-tab ${editorTab === 'text' ? 'active' : ''}`}
+                  onClick={() => setEditorTab('text')}
+                >
+                  Text
+                </button>
+                <button
+                  className={`drawer-tab ${editorTab === 'table' ? 'active' : ''}`}
+                  onClick={() => setEditorTab('table')}
+                >
+                  Table
+                </button>
+              </div>
               <button className="btn-icon modal-close" onClick={() => setShowEditor(false)}>&times;</button>
             </div>
             <div className="drawer-body">
-              <textarea
-                className="editor-textarea"
-                value={editorText}
-                onChange={e => handleEditorChange(e.target.value)}
-                placeholder="One name per line"
-                rows={12}
-              />
-              <div className="editor-status">
-                {editorStatus === 'editing' && <span className="status-editing">Editing...</span>}
-                {editorStatus === 'applied' && <span className="status-applied">&#10003; Applied</span>}
-              </div>
-              {showEditConfirm && (
-                <div className="edit-confirm-bar">
-                  <span>List changed — Apply and reset round?</span>
-                  <div className="edit-confirm-actions">
-                    <button className="btn btn-primary btn-sm" onClick={handleEditConfirmApply}>Apply + Reset</button>
-                    <button className="btn btn-secondary-dark btn-sm" onClick={handleEditConfirmCancel}>Cancel</button>
+              {editorTab === 'text' ? (
+                <>
+                  <textarea
+                    className="editor-textarea"
+                    value={editorText}
+                    onChange={e => handleEditorChange(e.target.value)}
+                    placeholder="One name per line"
+                    rows={12}
+                  />
+                  <div className="editor-status">
+                    {editorStatus === 'editing' && <span className="status-editing">Editing...</span>}
+                    {editorStatus === 'applied' && <span className="status-applied">&#10003; Applied</span>}
                   </div>
-                </div>
+                  {showEditConfirm && (
+                    <div className="edit-confirm-bar">
+                      <span>List changed — Apply and reset round?</span>
+                      <div className="edit-confirm-actions">
+                        <button className="btn btn-primary btn-sm" onClick={handleEditConfirmApply}>Apply + Reset</button>
+                        <button className="btn btn-secondary-dark btn-sm" onClick={handleEditConfirmCancel}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <AdvancedEditor
+                  items={getQuickSpin().items}
+                  onUpdate={handleAdvancedUpdate}
+                  onClose={() => setShowEditor(false)}
+                />
               )}
             </div>
           </div>

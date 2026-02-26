@@ -453,7 +453,7 @@ body {
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(400px, 90vw);
+  width: min(500px, 90vw);
   background: #fff;
   z-index: 151;
   display: flex;
@@ -744,6 +744,162 @@ body {
   color: #555;
   min-width: 3rem;
   text-align: right;
+}
+
+/* ─── Drawer Tabs ──────────────────────────────────── */
+.drawer-tabs {
+  display: flex;
+  gap: 0;
+  margin-left: auto;
+  margin-right: 0.5rem;
+}
+.drawer-tab {
+  padding: 0.3rem 0.75rem;
+  border: none;
+  background: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+.drawer-tab:hover { color: #555; }
+.drawer-tab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+
+/* ─── Advanced Editor ──────────────────────────────── */
+.advanced-editor {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.advanced-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.advanced-editor-header h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.advanced-toggle {
+  gap: 0.4rem !important;
+  padding: 0.25rem 0.5rem !important;
+}
+.advanced-editor-table-wrapper {
+  overflow-x: auto;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.advanced-editor-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.advanced-editor-table th {
+  text-align: left;
+  font-weight: 700;
+  color: #888;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.4rem 0.3rem;
+  border-bottom: 2px solid #eee;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  white-space: nowrap;
+}
+.advanced-editor-table td {
+  padding: 0.25rem 0.3rem;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+.ae-row-hidden { opacity: 0.5; }
+.ae-input {
+  width: 100%;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  outline: none;
+}
+.ae-input:focus { border-color: #667eea; }
+.ae-input-weight { width: 60px; }
+.ae-col-weight { width: 70px; }
+.ae-col-label { width: 120px; }
+.ae-col-color { width: 60px; }
+.ae-col-hidden { width: 40px; text-align: center; }
+.ae-color-input {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.ae-color-clear {
+  width: 20px;
+  height: 20px;
+  font-size: 0.8rem;
+  vertical-align: middle;
+  margin-left: 2px;
+}
+.advanced-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+}
+
+/* ─── Selection Bar (ListPanel) ────────────────────── */
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  background: #eef0ff;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+}
+.selection-count {
+  font-weight: 600;
+  color: #667eea;
+  margin-right: auto;
+}
+.name-item-selected {
+  background: #e8ecff !important;
+}
+.btn-danger-bg {
+  background: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-danger-bg:hover { background: #c0392b; }
+
+/* ─── Stop Button ──────────────────────────────────── */
+.spin-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+.stop-button {
+  background: linear-gradient(135deg, #e67e22, #d35400) !important;
+  box-shadow: 0 4px 12px rgba(230,126,34,0.3) !important;
+  animation: pulse-stop 1s ease-in-out infinite;
+}
+@keyframes pulse-stop {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
 }
 
 /* ─── Settings: Select + Divider ───────────────────── */

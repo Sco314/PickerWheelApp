@@ -125,6 +125,20 @@ export default function SettingsPanel({ onSettingsChanged }: Props) {
               </div>
             </div>
           </label>
+
+          <label className="settings-checkbox">
+            <input
+              type="checkbox"
+              checked={appSettings.manualStop}
+              onChange={e => updateApp({ manualStop: e.target.checked })}
+            />
+            <div>
+              <div className="settings-label">Manual stop</div>
+              <div className="settings-desc">
+                Show a STOP button during spin. The winner is wherever the wheel lands when you press it.
+              </div>
+            </div>
+          </label>
         </div>
       )}
 

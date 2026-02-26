@@ -10,6 +10,7 @@ export interface AppSettings {
   spinEasing: SpinEasing;     // easing preset (default 'cubic')
   randomStartAngle: boolean;  // randomize wheel position on load (default true)
   idleSpin: boolean;          // gentle constant rotation when idle (default false)
+  manualStop: boolean;        // show stop button during spin (default false)
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -18,6 +19,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   spinEasing: 'cubic',
   randomStartAngle: true,
   idleSpin: false,
+  manualStop: false,
 };
 
 export function getAppSettings(): AppSettings {
