@@ -9,6 +9,7 @@ import SettingsPanel from './components/SettingsPanel';
 import SpinnerWheel from './components/SpinnerWheel';
 import WinnerDialog from './components/WinnerDialog';
 import AdvancedEditor from './components/AdvancedEditor';
+import HelpPage from './components/HelpPage';
 import ResultsPanel from './components/ResultsPanel';
 import { getAppSettings } from './services/settings';
 import {
@@ -71,11 +72,15 @@ function App() {
   const [draftPicked, setDraftPicked] = useState<string[]>([]);
   const [draftHistory, setDraftHistory] = useState<SpinRecord[]>([]);
 
+  // Embed mode: minimal wheel-only UI when ?embed=true
+  const [isEmbed] = useState(() => new URLSearchParams(window.location.search).get('embed') === 'true');
+
   // Modal states
   const [showClasses, setShowClasses] = useState(false);
   const [showWinnerDialog, setShowWinnerDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   // Inline session name editing
   const [editingSessionName, setEditingSessionName] = useState(false);
@@ -116,6 +121,18 @@ function App() {
     if (showGear) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showGear]);
+
+  // Embed mode: listen for postMessage commands from parent window
+  useEffect(() => {
+    if (!isEmbed) return;
+    function handleMessage(e: MessageEvent) {
+      if (e.data?.type === 'spin') {
+        handleSpinStartRef.current();
+      }
+    }
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isEmbed]);
 
   // Query string support: ?names=Alice,Bob,Charlie loads a pre-configured quick spin
   useEffect(() => {
@@ -342,6 +359,16 @@ function App() {
     currentSpinRef.current = null;
     setShowWinnerDialog(false);
     refresh();
+
+    // Emit postMessage for embed mode consumers
+    if (isEmbed && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'spin-result',
+        winner: { id: record.entryId, name: record.entryName },
+        removed: record.removedFromPool,
+        timestamp: record.timestamp,
+      }, '*');
+    }
   };
 
   const handleWinnerClose = () => applyWinnerChoice(false);
@@ -648,6 +675,32 @@ function App() {
     return [];
   })();
 
+  // ─── Embed mode: minimal wheel-only UI ────────────
+  if (isEmbed) {
+    return (
+      <div className="app app-embed">
+        <SpinnerWheel
+          names={spinning && currentSpinRef.current ? currentSpinRef.current.eligibleSnapshot : eligibleNames}
+          onSpinComplete={handleSpinComplete}
+          spinning={spinning}
+          onSpinStart={handleSpinStart}
+          targetId={targetId}
+          spinDuration={appSettings.spinDuration}
+          spinEasing={appSettings.spinEasing}
+          idleSpin={appSettings.idleSpin}
+          manualStop={appSettings.manualStop}
+        />
+        {showWinnerDialog && currentSpinRef.current && (
+          <WinnerDialog
+            winnerName={currentSpinRef.current.record.entryName}
+            onClose={handleWinnerClose}
+            onRemove={handleWinnerRemove}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       {/* ─── Header ─── */}
@@ -677,6 +730,7 @@ function App() {
               <button onClick={handleShareUrl}>Share Wheel URL</button>
               <button onClick={handleExport}>Export Data</button>
               <button onClick={handleImport}>Import Data</button>
+              <button onClick={() => { setShowHelp(true); setShowGear(false); }}>Help</button>
             </div>
           )}
         </div>
@@ -846,6 +900,12 @@ function App() {
             history={spinHistory}
             sessionName={isQuick ? 'Quick Spin' : getSessionDisplayName()}
           />
+        </Modal>
+      )}
+
+      {showHelp && (
+        <Modal title="Help" onClose={() => setShowHelp(false)}>
+          <HelpPage />
         </Modal>
       )}
 
