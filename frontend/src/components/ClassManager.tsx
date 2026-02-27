@@ -31,7 +31,7 @@ export default function ClassManager() {
   };
 
   const handleDeleteClass = (id: string) => {
-    if (confirm('Delete this class and all its projects?')) {
+    if (confirm('Delete this class and all its sessions?')) {
       deleteClass(id);
       if (expandedClassId === id) setExpandedClassId(null);
       refresh();

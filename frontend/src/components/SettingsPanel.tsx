@@ -62,6 +62,83 @@ export default function SettingsPanel({ onSettingsChanged }: Props) {
               </div>
             </div>
           </label>
+
+          <div className="settings-divider" />
+
+          <div className="settings-range">
+            <div>
+              <div className="settings-label">Spin duration</div>
+              <div className="settings-desc">How long the wheel spins before stopping.</div>
+            </div>
+            <input
+              type="range"
+              min="2"
+              max="12"
+              step="0.5"
+              value={appSettings.spinDuration}
+              onChange={e => updateApp({ spinDuration: parseFloat(e.target.value) })}
+            />
+            <span className="settings-range-value">{appSettings.spinDuration}s</span>
+          </div>
+
+          <div className="settings-select">
+            <div>
+              <div className="settings-label">Easing style</div>
+              <div className="settings-desc">How the wheel decelerates.</div>
+            </div>
+            <select
+              value={appSettings.spinEasing}
+              onChange={e => updateApp({ spinEasing: e.target.value as AppSettings['spinEasing'] })}
+            >
+              <option value="cubic">Cubic (smooth)</option>
+              <option value="quart">Quartic (dramatic)</option>
+              <option value="expo">Exponential (snappy)</option>
+            </select>
+          </div>
+
+          <div className="settings-divider" />
+
+          <label className="settings-checkbox">
+            <input
+              type="checkbox"
+              checked={appSettings.randomStartAngle}
+              onChange={e => updateApp({ randomStartAngle: e.target.checked })}
+            />
+            <div>
+              <div className="settings-label">Random start angle</div>
+              <div className="settings-desc">
+                Randomize the wheel position on page load.
+              </div>
+            </div>
+          </label>
+
+          <label className="settings-checkbox">
+            <input
+              type="checkbox"
+              checked={appSettings.idleSpin}
+              onChange={e => updateApp({ idleSpin: e.target.checked })}
+            />
+            <div>
+              <div className="settings-label">Idle spin</div>
+              <div className="settings-desc">
+                Gently rotate the wheel when not spinning.
+              </div>
+            </div>
+          </label>
+
+          <label className="settings-checkbox">
+            <input
+              type="checkbox"
+              checked={appSettings.manualStop}
+              onChange={e => updateApp({ manualStop: e.target.checked })}
+            />
+            <div>
+              <div className="settings-label">Manual stop</div>
+              <div className="settings-desc">
+                Show a STOP button during spin. The winner is wherever the wheel lands when you press it.
+              </div>
+            </div>
+          </label>
         </div>
       )}
 

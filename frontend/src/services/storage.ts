@@ -6,6 +6,10 @@ const STORAGE_KEY = 'pickerWheelData';
 export interface Student {
   id: string;
   name: string;
+  weight?: number;
+  displayLabel?: string;
+  color?: string;
+  hidden?: boolean;
 }
 
 export interface Class {
@@ -29,7 +33,7 @@ export interface Session {
   eligible: string[];    // student IDs in pool
   picked: string[];      // student IDs picked (ordered)
   history: SpinRecord[];
-  mode: 'remove' | 'keep';
+  mode: 'remove' | 'keep' | 'accumulate';
   createdAt: string;
   lastSpinAt?: string;
 }
@@ -37,6 +41,19 @@ export interface Session {
 export interface QuickSpinItem {
   id: string;
   name: string;
+  weight?: number;
+  displayLabel?: string;
+  color?: string;
+  hidden?: boolean;
+}
+
+/** Entry as seen by the wheel — includes optional advanced fields. */
+export interface WheelEntry {
+  id: string;
+  name: string;
+  weight?: number;
+  displayLabel?: string;
+  color?: string;
 }
 
 export interface QuickSpin {
@@ -44,7 +61,7 @@ export interface QuickSpin {
   eligible: string[];    // item IDs in pool
   picked: string[];      // item IDs picked (ordered)
   history: SpinRecord[];
-  mode: 'remove' | 'keep';
+  mode: 'remove' | 'keep' | 'accumulate';
 }
 
 export interface AppData {
@@ -55,6 +72,32 @@ export interface AppData {
 
 function genId(): string {
   return crypto.randomUUID();
+}
+
+/** Cryptographically secure random index in [0, length).
+ *  Uses Web Crypto API; modulo bias is negligible for classroom-sized lists. */
+export function secureRandomIndex(length: number): number {
+  if (length <= 0) return 0;
+  const array = new Uint32Array(1);
+  crypto.getRandomValues(array);
+  return array[0] % length;
+}
+
+/** Weighted random index using crypto RNG. Falls back to uniform if all weights are equal. */
+export function weightedPickIndex(weights: number[]): number {
+  if (weights.length === 0) return -1;
+  const allEqual = weights.every(w => w === weights[0]);
+  if (allEqual) return secureRandomIndex(weights.length);
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+  if (totalWeight <= 0) return secureRandomIndex(weights.length);
+  const array = new Uint32Array(1);
+  crypto.getRandomValues(array);
+  let target = (array[0] / 0x100000000) * totalWeight;
+  for (let i = 0; i < weights.length; i++) {
+    target -= weights[i];
+    if (target <= 0) return i;
+  }
+  return weights.length - 1;
 }
 
 const DEFAULT_QUICK_SPIN_NAMES = ['Abby', 'Bess', 'Collin', 'Della', 'Emmett', 'Finn', 'Greer', 'Holly'];
@@ -248,7 +291,7 @@ export function createSessionWithState(
   eligible: string[],
   picked: string[],
   history: SpinRecord[],
-  mode: 'remove' | 'keep',
+  mode: 'remove' | 'keep' | 'accumulate',
   name?: string,
 ): Session {
   const data = load();
@@ -292,7 +335,11 @@ export function pickRandomFromSession(sessionId: string): SpinRecord | null {
   if (!session || session.eligible.length === 0) return null;
 
   const cls = data.classes.find(c => c.id === session.classId);
-  const idx = Math.floor(Math.random() * session.eligible.length);
+  const weights = session.eligible.map(id => {
+    const student = cls?.students.find(s => s.id === id);
+    return student?.weight ?? 1;
+  });
+  const idx = weightedPickIndex(weights);
   const winnerId = session.eligible[idx];
   const winnerName = cls?.students.find(s => s.id === winnerId)?.name ?? '(unknown)';
 
@@ -309,7 +356,11 @@ export function pickRandomFromQuickSpin(): SpinRecord | null {
   const qs = data.quickSpin!;
   if (qs.eligible.length === 0) return null;
 
-  const idx = Math.floor(Math.random() * qs.eligible.length);
+  const weights = qs.eligible.map(id => {
+    const item = qs.items.find(i => i.id === id);
+    return item?.weight ?? 1;
+  });
+  const idx = weightedPickIndex(weights);
   const winnerId = qs.eligible[idx];
   const winnerName = qs.items.find(i => i.id === winnerId)?.name ?? '(unknown)';
 
@@ -329,7 +380,11 @@ export function pickRandomFromDraft(
   if (eligible.length === 0) return null;
 
   const cls = getClass(classId);
-  const idx = Math.floor(Math.random() * eligible.length);
+  const weights = eligible.map(id => {
+    const student = cls?.students.find(s => s.id === id);
+    return student?.weight ?? 1;
+  });
+  const idx = weightedPickIndex(weights);
   const winnerId = eligible[idx];
   const winnerName = cls?.students.find(s => s.id === winnerId)?.name ?? '(unknown)';
 
@@ -399,7 +454,7 @@ export function sessionRemoveFromEligible(sessionId: string, studentId: string):
   save(data);
 }
 
-export function setSessionMode(sessionId: string, mode: 'remove' | 'keep'): void {
+export function setSessionMode(sessionId: string, mode: 'remove' | 'keep' | 'accumulate'): void {
   const data = load();
   const session = data.sessions.find(s => s.id === sessionId);
   if (!session) return;
@@ -489,7 +544,25 @@ export function quickSpinRemove(itemId: string): void {
   save(data);
 }
 
-export function setQuickSpinMode(mode: 'remove' | 'keep'): void {
+export function updateQuickSpinItem(
+  itemId: string,
+  patch: Partial<Pick<QuickSpinItem, 'name' | 'weight' | 'displayLabel' | 'color' | 'hidden'>>,
+): void {
+  const data = load();
+  const qs = data.quickSpin!;
+  const item = qs.items.find(i => i.id === itemId);
+  if (!item) return;
+  Object.assign(item, patch);
+  // If hiding, remove from eligible; if unhiding, add back
+  if (patch.hidden === true) {
+    qs.eligible = qs.eligible.filter(id => id !== itemId);
+  } else if (patch.hidden === false && !qs.eligible.includes(itemId) && !qs.picked.includes(itemId)) {
+    qs.eligible.push(itemId);
+  }
+  save(data);
+}
+
+export function setQuickSpinMode(mode: 'remove' | 'keep' | 'accumulate'): void {
   const data = load();
   data.quickSpin!.mode = mode;
   save(data);
@@ -516,22 +589,34 @@ export function restoreQuickSpinState(eligible: string[], picked: string[], hist
   save(data);
 }
 
-export function resolveQuickSpinNames(ids: string[]): { id: string; name: string }[] {
+export function resolveQuickSpinNames(ids: string[]): WheelEntry[] {
   const qs = getQuickSpin();
   return ids.map(id => {
     const item = qs.items.find(i => i.id === id);
-    return { id, name: item?.name ?? '(removed)' };
+    return {
+      id,
+      name: item?.name ?? '(removed)',
+      weight: item?.weight,
+      displayLabel: item?.displayLabel,
+      color: item?.color,
+    };
   });
 }
 
 // ─── Helpers ─────────────────────────────────────────────
 
-export function resolveNames(classId: string, studentIds: string[]): { id: string; name: string }[] {
+export function resolveNames(classId: string, studentIds: string[]): WheelEntry[] {
   const cls = getClass(classId);
   if (!cls) return [];
   return studentIds.map(id => {
     const student = cls.students.find(s => s.id === id);
-    return { id, name: student?.name ?? '(removed)' };
+    return {
+      id,
+      name: student?.name ?? '(removed)',
+      weight: student?.weight,
+      displayLabel: student?.displayLabel,
+      color: student?.color,
+    };
   });
 }
 
