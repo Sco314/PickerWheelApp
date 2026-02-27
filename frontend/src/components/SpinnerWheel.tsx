@@ -143,7 +143,7 @@ export default function SpinnerWheel({
   const isLargeList = names.length >= LARGE_LIST_THRESHOLD;
   const nameAtPointerRef = useRef('');
 
-  const draw = useCallback((rotation: number) => {
+  const draw = useCallback((rotation: number, highlightIdx?: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -185,6 +185,11 @@ export default function SpinnerWheel({
       return;
     }
 
+    // Compute pointer segment index for pointer color
+    const pointerAngle = -Math.PI / 2;
+    const relAngleForPointer = ((pointerAngle - rotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+    const pointerSegIdx = segmentAtAngle(relAngleForPointer, cumAngles);
+
     // Draw weighted segments
     let cumAngle = 0;
     for (let i = 0; i < names.length; i++) {
@@ -197,11 +202,22 @@ export default function SpinnerWheel({
       ctx.arc(cx, cy, radius, startAngle, endAngle);
       ctx.closePath();
       // Per-entry color override, then palette color, then fallback
-      ctx.fillStyle = names[i].color || segmentColors[i] || PALETTE[i % PALETTE.length];
+      const segColor = names[i].color || segmentColors[i] || PALETTE[i % PALETTE.length];
+      ctx.fillStyle = segColor;
       ctx.fill();
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
       ctx.stroke();
+
+      // Highlight overlay for winning flash animation
+      if (highlightIdx === i) {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fill();
+      }
 
       // Skip text labels for large lists
       if (names.length < LARGE_LIST_THRESHOLD) {
@@ -263,7 +279,8 @@ export default function SpinnerWheel({
     ctx.textBaseline = 'middle';
     ctx.fillText('SPIN', cx, cy);
 
-    // Pointer arrow (top, pointing down)
+    // Pointer arrow (top, pointing down) — color matches segment under pointer
+    const pointerColor = names[pointerSegIdx]?.color || segmentColors[pointerSegIdx] || PALETTE[pointerSegIdx % PALETTE.length];
     const pointerX = cx;
     const pointerY = cy - radius - 2;
     ctx.beginPath();
@@ -271,18 +288,15 @@ export default function SpinnerWheel({
     ctx.lineTo(pointerX - 12, pointerY);
     ctx.lineTo(pointerX + 12, pointerY);
     ctx.closePath();
-    ctx.fillStyle = '#e74c3c';
+    ctx.fillStyle = pointerColor;
     ctx.fill();
-    ctx.strokeStyle = '#c0392b';
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Compute which name is under the pointer (pointer is at -PI/2 = top)
+    // Update name-at-pointer for large lists
     if (names.length >= LARGE_LIST_THRESHOLD) {
-      const pointerAngle = -Math.PI / 2;
-      const relAngle = ((pointerAngle - rotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-      const idx = segmentAtAngle(relAngle, cumAngles);
-      const newName = names[idx]?.name || '';
+      const newName = names[pointerSegIdx]?.name || '';
       if (newName !== nameAtPointerRef.current) {
         nameAtPointerRef.current = newName;
         setNameAtPointer(newName);
@@ -411,7 +425,22 @@ export default function SpinnerWheel({
         const pointerAngle = -Math.PI / 2;
         const relAngle = ((pointerAngle - currentAngle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
         const actualWinnerIdx = segmentAtAngle(relAngle, animCum);
-        onSpinCompleteRef.current(currentNames[actualWinnerIdx].id);
+
+        // Flash the winning segment 4 times over ~500ms before announcing
+        const flashStart = performance.now();
+        const FLASH_DURATION = 500;
+        function flashAnimate(flashNow: number) {
+          const fe = flashNow - flashStart;
+          if (fe < FLASH_DURATION) {
+            const flashOn = Math.floor(fe / 83) % 2 === 0;
+            currentDraw(currentAngle, flashOn ? actualWinnerIdx : undefined);
+            animRef.current = requestAnimationFrame(flashAnimate);
+          } else {
+            currentDraw(currentAngle); // final clean frame
+            onSpinCompleteRef.current(currentNames[actualWinnerIdx].id);
+          }
+        }
+        animRef.current = requestAnimationFrame(flashAnimate);
       }
     }
 

@@ -38,6 +38,10 @@ import {
   sessionMoveBackToEligible,
   sessionRemoveFromEligible,
   setQuickSpinNames,
+  shuffleQuickSpinEligible,
+  shuffleSessionEligible,
+  sortQuickSpinEligible,
+  sortSessionEligible,
   undoQuickSpin,
   undoSessionSpin,
   restoreQuickSpinState,
@@ -86,6 +90,9 @@ function App() {
   const [editingSessionName, setEditingSessionName] = useState(false);
   const [sessionNameText, setSessionNameText] = useState('');
 
+  // Fullscreen mode
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   // Gear menu
   const [showGear, setShowGear] = useState(false);
   const gearRef = useRef<HTMLDivElement>(null);
@@ -104,6 +111,17 @@ function App() {
 
   const refresh = () => setTick(t => t + 1);
 
+  // Re-apply theme whenever settings change (called by SettingsPanel)
+  const handleSettingsChanged = () => {
+    const settings = getAppSettings();
+    const theme = settings.theme ?? 'auto';
+    let dark = false;
+    if (theme === 'dark') dark = true;
+    else if (theme === 'auto') dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    refresh();
+  };
+
   // Helpers to detect mode
   const isQuick = appMode.type === 'quick';
   const isDraft = appMode.type === 'class' && appMode.sessionId === null;
@@ -121,6 +139,36 @@ function App() {
     if (showGear) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showGear]);
+
+  // ─── Dark mode: apply theme from settings + system preference ──
+  useEffect(() => {
+    function applyTheme() {
+      const settings = getAppSettings();
+      const theme = settings.theme ?? 'auto';
+      let dark = false;
+      if (theme === 'dark') dark = true;
+      else if (theme === 'auto') dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    }
+    applyTheme();
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', applyTheme);
+    // Re-apply on settings change via storage event
+    window.addEventListener('storage', applyTheme);
+    return () => {
+      mq.removeEventListener('change', applyTheme);
+      window.removeEventListener('storage', applyTheme);
+    };
+  }, []);
+
+  // ─── Fullscreen change detection ──
+  useEffect(() => {
+    function onFsChange() {
+      setIsFullscreen(!!document.fullscreenElement);
+    }
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
 
   // Embed mode: listen for postMessage commands from parent window
   useEffect(() => {
@@ -503,6 +551,43 @@ function App() {
     refresh();
   };
 
+  // ─── Shuffle / Sort eligible list ─────────────────
+  const handleShuffle = () => {
+    if (isQuick) shuffleQuickSpinEligible();
+    else if (isDraft && classId) {
+      // Shuffle in-memory draft
+      const arr = [...draftEligible];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      setDraftEligible(arr);
+    } else if (sessionId) shuffleSessionEligible(sessionId);
+    refresh();
+  };
+
+  const handleSort = () => {
+    if (isQuick) sortQuickSpinEligible();
+    else if (isDraft && classId) {
+      const cls = getClass(classId);
+      if (cls) {
+        const nameMap = new Map(cls.students.map(s => [s.id, s.name]));
+        const sorted = [...draftEligible].sort((a, b) => (nameMap.get(a) ?? '').localeCompare(nameMap.get(b) ?? ''));
+        setDraftEligible(sorted);
+      }
+    } else if (sessionId) sortSessionEligible(sessionId);
+    refresh();
+  };
+
+  // ─── Fullscreen toggle ────────────────────────────
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
+  };
+
   // ─── Advanced editor update ────────────────────────
   const handleAdvancedUpdate = (itemId: string, patch: Parameters<typeof updateQuickSpinItem>[1]) => {
     updateQuickSpinItem(itemId, patch);
@@ -667,6 +752,19 @@ function App() {
   const classes = getClasses();
   const appSettings = getAppSettings();
 
+  // Compute winner color from eligible snapshot for dialog accent
+  const getWinnerColor = (): string | undefined => {
+    const spin = currentSpinRef.current;
+    if (!spin) return undefined;
+    const entry = spin.eligibleSnapshot.find(n => n.id === spin.record.entryId);
+    if (entry?.color) return entry.color;
+    // Fallback: use palette based on position in snapshot
+    const idx = spin.eligibleSnapshot.findIndex(n => n.id === spin.record.entryId);
+    if (idx === -1) return undefined;
+    const PALETTE = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9', '#F0B27A', '#82E0AA', '#F1948A', '#AED6F1', '#D7BDE2', '#A3E4D7'];
+    return PALETTE[idx % PALETTE.length];
+  };
+
   // Gather spin history for results panel
   const spinHistory: SpinRecord[] = (() => {
     if (isQuick) return getQuickSpin().history;
@@ -693,6 +791,7 @@ function App() {
         {showWinnerDialog && currentSpinRef.current && (
           <WinnerDialog
             winnerName={currentSpinRef.current.record.entryName}
+            winnerColor={getWinnerColor()}
             onClose={handleWinnerClose}
             onRemove={handleWinnerRemove}
           />
@@ -718,6 +817,10 @@ function App() {
         />
 
         <div className="header-spacer" />
+
+        <button className="btn-icon" onClick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+          {isFullscreen ? '\u2716' : '\u26F6'}
+        </button>
 
         <div className="gear-wrapper" ref={gearRef}>
           <button className="btn-icon gear-btn" onClick={() => setShowGear(!showGear)} title="Settings">
@@ -746,11 +849,19 @@ function App() {
           onBulkRemove={handleBulkRemove}
           onResetRound={handleResetRound}
           headerAction={
-            isQuick ? (
-              <button className="btn btn-secondary-dark btn-sm edit-btn" onClick={openEditor}>
-                &#9998; Edit
+            <div className="header-action-group">
+              <button className="btn btn-secondary-dark btn-sm" onClick={handleShuffle} title="Shuffle" disabled={eligibleNames.length < 2}>
+                &#8645;
               </button>
-            ) : undefined
+              <button className="btn btn-secondary-dark btn-sm" onClick={handleSort} title="Sort A-Z" disabled={eligibleNames.length < 2}>
+                A&#8595;Z
+              </button>
+              {isQuick && (
+                <button className="btn btn-secondary-dark btn-sm edit-btn" onClick={openEditor}>
+                  &#9998; Edit
+                </button>
+              )}
+            </div>
           }
         />
 
@@ -890,7 +1001,7 @@ function App() {
 
       {showSettings && (
         <Modal title="Settings" onClose={() => setShowSettings(false)}>
-          <SettingsPanel onSettingsChanged={refresh} />
+          <SettingsPanel onSettingsChanged={handleSettingsChanged} />
         </Modal>
       )}
 

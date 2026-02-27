@@ -620,6 +620,54 @@ export function resolveNames(classId: string, studentIds: string[]): WheelEntry[
   });
 }
 
+// ─── Shuffle / Sort ─────────────────────────────────────
+
+/** Durstenfeld (Fisher-Yates) shuffle using crypto RNG */
+function shuffleArray<T>(arr: T[]): T[] {
+  const result = [...arr];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = secureRandomIndex(i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+export function shuffleQuickSpinEligible(): void {
+  const data = load();
+  const qs = data.quickSpin ?? makeQuickSpin(DEFAULT_QUICK_SPIN_NAMES);
+  qs.eligible = shuffleArray(qs.eligible);
+  data.quickSpin = qs;
+  save(data);
+}
+
+export function sortQuickSpinEligible(): void {
+  const data = load();
+  const qs = data.quickSpin ?? makeQuickSpin(DEFAULT_QUICK_SPIN_NAMES);
+  const nameMap = new Map(qs.items.map(i => [i.id, i.name]));
+  qs.eligible.sort((a, b) => (nameMap.get(a) ?? '').localeCompare(nameMap.get(b) ?? ''));
+  data.quickSpin = qs;
+  save(data);
+}
+
+export function shuffleSessionEligible(sessionId: string): void {
+  const data = load();
+  const s = data.sessions.find(s => s.id === sessionId);
+  if (!s) return;
+  s.eligible = shuffleArray(s.eligible);
+  save(data);
+}
+
+export function sortSessionEligible(sessionId: string): void {
+  const data = load();
+  const s = data.sessions.find(sess => sess.id === sessionId);
+  if (!s) return;
+  const cls = data.classes.find(c => c.id === s.classId);
+  if (!cls) return;
+  const nameMap = new Map(cls.students.map(st => [st.id, st.name]));
+  s.eligible.sort((a, b) => (nameMap.get(a) ?? '').localeCompare(nameMap.get(b) ?? ''));
+  save(data);
+}
+
 // ─── Export / Import ─────────────────────────────────────
 
 export function exportData(): string {
