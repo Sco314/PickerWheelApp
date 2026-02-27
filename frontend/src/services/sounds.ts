@@ -55,16 +55,18 @@ export function playTick(): void {
   osc.connect(gain);
   gain.connect(ctx.destination);
 
-  // Short percussive click
-  osc.type = 'square';
+  // Short percussive click — triangle wave with attack ramp to avoid pop
+  osc.type = 'triangle';
   osc.frequency.setValueAtTime(800, ctx.currentTime);
   osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.03);
 
-  gain.gain.setValueAtTime(settings.volume * 0.3, ctx.currentTime);
+  // Start at near-zero and ramp up over 3ms to prevent discontinuity pop
+  gain.gain.setValueAtTime(0.001, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(settings.volume * 0.3, ctx.currentTime + 0.003);
   gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
 
   osc.start(ctx.currentTime);
-  osc.stop(ctx.currentTime + 0.05);
+  osc.stop(ctx.currentTime + 0.06);
 }
 
 // Celebration sound — short fanfare/chime

@@ -405,7 +405,13 @@ export default function SpinnerWheel({
       if (t < 1) {
         animRef.current = requestAnimationFrame(animate);
       } else {
-        onSpinCompleteRef.current(currentNames[targetIndex].id);
+        // Derive winner from ACTUAL pointer position at final angle —
+        // guarantees the visual landing and reported winner always match,
+        // regardless of floating-point drift during eased interpolation.
+        const pointerAngle = -Math.PI / 2;
+        const relAngle = ((pointerAngle - currentAngle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+        const actualWinnerIdx = segmentAtAngle(relAngle, animCum);
+        onSpinCompleteRef.current(currentNames[actualWinnerIdx].id);
       }
     }
 

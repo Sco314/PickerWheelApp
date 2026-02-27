@@ -328,7 +328,7 @@ body {
 }
 .spinner-canvas {
   width: 100%;
-  max-width: min(480px, 50vh);
+  max-width: min(600px, 75vh);
   aspect-ratio: 1;
 }
 /* Large list: name-at-pointer overlay */
@@ -1131,7 +1131,7 @@ body {
   .picker-layout {
     grid-template-columns: 1fr 1.5fr 1fr;
   }
-  .spinner-canvas { max-width: min(420px, 50vh); }
+  .spinner-canvas { max-width: min(520px, 70vh); }
 }
 
 @media (max-width: 900px) {
@@ -1151,7 +1151,7 @@ body {
 @media (max-width: 600px) {
   .app-header h1 { font-size: 1.1rem; }
   .create-class-form { flex-direction: column; }
-  .spinner-canvas { max-width: min(300px, 45vh); }
+  .spinner-canvas { max-width: min(340px, 55vh); }
   .modal-card { width: 95%; max-height: 90vh; }
   .drawer-panel { width: 100vw; }
 }
