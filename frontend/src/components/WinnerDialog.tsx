@@ -3,6 +3,7 @@ import { playCelebration } from '../services/sounds';
 
 type Props = {
   winnerName: string;
+  winnerColor?: string;  // segment color for accent
   onClose: () => void;   // keep on wheel
   onRemove: () => void;  // remove from wheel
 };
@@ -72,7 +73,7 @@ function launchConfetti(canvas: HTMLCanvasElement) {
   return () => cancelAnimationFrame(frame);
 }
 
-export default function WinnerDialog({ winnerName, onClose, onRemove }: Props) {
+export default function WinnerDialog({ winnerName, winnerColor, onClose, onRemove }: Props) {
   const confettiRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -86,9 +87,14 @@ export default function WinnerDialog({ winnerName, onClose, onRemove }: Props) {
   return (
     <div className="winner-backdrop">
       <canvas ref={confettiRef} className="winner-confetti" />
-      <div className="winner-card">
+      <div
+        className="winner-card"
+        style={winnerColor ? { borderTop: `4px solid ${winnerColor}` } : undefined}
+      >
         <div className="winner-header">We have a winner!</div>
-        <div className="winner-name">{winnerName}</div>
+        <div className="winner-name" style={winnerColor ? { color: winnerColor } : undefined}>
+          {winnerName}
+        </div>
         <div className="winner-actions">
           <button className="btn btn-secondary-dark" onClick={onClose}>
             Close
