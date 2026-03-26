@@ -68,13 +68,13 @@ export default function SettingsPanel({ onSettingsChanged }: Props) {
           <div className="settings-range">
             <div>
               <div className="settings-label">Spin duration</div>
-              <div className="settings-desc">How long the wheel spins before stopping.</div>
+              <div className="settings-desc">How long the wheel spins before stopping (1–60s).</div>
             </div>
             <input
               type="range"
-              min="2"
-              max="12"
-              step="0.5"
+              min="1"
+              max="60"
+              step="1"
               value={appSettings.spinDuration}
               onChange={e => updateApp({ spinDuration: parseFloat(e.target.value) })}
             />
@@ -139,6 +139,23 @@ export default function SettingsPanel({ onSettingsChanged }: Props) {
               </div>
             </div>
           </label>
+
+          <div className="settings-divider" />
+
+          <div className="settings-select">
+            <div>
+              <div className="settings-label">Theme</div>
+              <div className="settings-desc">Choose light, dark, or auto-detect from your system.</div>
+            </div>
+            <select
+              value={appSettings.theme ?? 'auto'}
+              onChange={e => updateApp({ theme: e.target.value as AppSettings['theme'] })}
+            >
+              <option value="auto">Auto (system)</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
         </div>
       )}
 
