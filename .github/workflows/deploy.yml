@@ -36,6 +36,9 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      - name: Copy standalone pages into dist
+        run: cp -v confetti-demo.html frontend/dist/ 2>/dev/null || true
+
       - uses: actions/configure-pages@v4
 
       - uses: actions/upload-pages-artifact@v3
