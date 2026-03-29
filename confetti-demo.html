@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<!-- confetti-demo.html v3.0 — Confetti Lab -->
+<!-- confetti-demo.html v3.1 — Confetti Lab -->
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -27,48 +28,57 @@ body {
   min-height: 0;
   background: #1a1a2e;
 }
+
+/* FIX: canvas must be 100% of container or click coords are wrong */
 canvas {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
+
 #ch-h, #ch-v {
   position: absolute;
-  background: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.1);
   pointer-events: none;
+  z-index: 1;
 }
 #ch-h { top: 50%; left: 0; right: 0; height: 1px; }
 #ch-v { left: 50%; top: 0; bottom: 0; width: 1px; }
 #ch-dot {
   position: absolute;
   top: 50%; left: 50%;
-  transform: translate(-50%,-50%);
-  width: 7px; height: 7px;
+  transform: translate(-50%, -50%);
+  width: 10px; height: 10px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.13);
+  border: 1px solid rgba(255,255,255,0.25);
   pointer-events: none;
+  z-index: 1;
 }
 #test-hint {
   position: absolute;
   top: 50%; left: 50%;
-  transform: translate(-50%, 16px);
-  color: rgba(255,255,255,0.18);
-  font-size: 0.73rem;
+  transform: translate(-50%, 18px);
+  color: rgba(255,255,255,0.22);
+  font-size: 0.72rem;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   text-align: center;
   pointer-events: none;
   white-space: nowrap;
   transition: opacity 0.7s;
+  z-index: 1;
 }
 #particle-count {
   position: absolute;
   top: 8px; right: 10px;
   font-size: 9px;
   letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.16);
+  color: rgba(255,255,255,0.18);
   pointer-events: none;
   text-transform: uppercase;
+  z-index: 1;
 }
 #launch-center-btn {
   position: absolute;
@@ -76,10 +86,10 @@ canvas {
   transform: translateX(-50%);
   padding: 4px 18px;
   background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.13);
+  border: 1px solid rgba(255,255,255,0.14);
   border-radius: 20px;
-  color: rgba(255,255,255,0.38);
-  font: 0.71rem/1 'Courier New', monospace;
+  color: rgba(255,255,255,0.4);
+  font: 0.7rem/1 'Courier New', monospace;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   cursor: pointer;
@@ -87,41 +97,53 @@ canvas {
   transition: background .2s, color .2s, border-color .2s;
 }
 #launch-center-btn:hover {
-  background: rgba(255,255,255,0.11);
+  background: rgba(255,255,255,0.12);
   color: #fff;
-  border-color: rgba(255,255,255,0.28);
+  border-color: rgba(255,255,255,0.3);
 }
 
-/* ── PANEL ── */
+/* ══════════════════════════════════════════
+   PANEL — 2-row layout, no horizontal scroll
+   Each row is flex; sections split the width
+══════════════════════════════════════════ */
 #panel {
-  height: 162px;
-  min-height: 162px;
   flex-shrink: 0;
+  height: 272px;
   background: #0c0c1e;
-  border-top: 1px solid rgba(255,255,255,0.07);
-  display: flex;
-  align-items: stretch;
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-#panel::-webkit-scrollbar { height: 3px; }
-#panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.11); }
-
-.ps {
+  border-top: 1px solid rgba(255,255,255,0.08);
   display: flex;
   flex-direction: column;
-  padding: 7px 9px;
-  border-right: 1px solid rgba(255,255,255,0.045);
-  flex-shrink: 0;
+}
+
+/* Panel row */
+.pr {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  overflow: hidden;
+}
+.pr:last-child { border-bottom: none; }
+
+/* Panel section */
+.ps {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 7px 10px;
+  border-right: 1px solid rgba(255,255,255,0.04);
+  min-width: 0;
+  overflow: hidden;
 }
 .ps:last-child { border-right: none; }
 
+/* Section title */
 .pt {
   font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: rgba(78,205,196,0.5);
+  color: rgba(78,205,196,0.55);
   margin-bottom: 4px;
   white-space: nowrap;
   flex-shrink: 0;
@@ -130,28 +152,28 @@ canvas {
   color: rgba(255,255,255,0.22);
   font-size: 7.5px;
   margin-top: 4px;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
 
-/* slider row: [label] [VALUE] [===bar===] */
+/* Slider row: [label] [VALUE] [===bar===] */
 .sr {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
   flex-shrink: 0;
 }
 .sr label {
-  width: 62px;
+  width: 68px;
   flex-shrink: 0;
   font-size: 9px;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.42);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .sv {
-  width: 32px;
+  width: 34px;
   text-align: right;
   flex-shrink: 0;
   font-size: 9.5px;
@@ -160,20 +182,20 @@ canvas {
 }
 .sr input[type=range] {
   flex: 1;
-  min-width: 48px;
-  max-width: 80px;
+  min-width: 40px;
+  max-width: 120px;
   accent-color: #4ECDC4;
   cursor: pointer;
   height: 3px;
 }
 .sr.dim { opacity: 0.3; pointer-events: none; }
 
-/* shape buttons */
+/* Shape toggle buttons */
 .shape-row { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 2px; }
 .sb {
-  width: 25px; height: 20px;
+  width: 26px; height: 21px;
   background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.09);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 3px;
   color: rgba(255,255,255,0.38);
   font-size: 11px;
@@ -182,30 +204,29 @@ canvas {
   transition: background .1s, color .1s, border-color .1s;
   flex-shrink: 0;
 }
-.sb.on { background: rgba(78,205,196,0.16); border-color: rgba(78,205,196,0.45); color: #4ECDC4; }
+.sb.on { background: rgba(78,205,196,0.15); border-color: rgba(78,205,196,0.45); color: #4ECDC4; }
 
-/* mode buttons */
+/* Mode buttons */
 .mode-row { display: flex; gap: 3px; margin-bottom: 3px; }
 .mb {
   flex: 1;
   padding: 3px 2px;
   background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.09);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 3px;
   color: rgba(255,255,255,0.42);
-  font-size: 8.5px;
-  font-family: 'Courier New', monospace;
+  font: 8.5px/1 'Courier New', monospace;
   cursor: pointer;
   text-align: center;
   white-space: nowrap;
   transition: all .1s;
 }
-.mb.on { background: rgba(78,205,196,0.14); border-color: rgba(78,205,196,0.38); color: #4ECDC4; }
+.mb.on { background: rgba(78,205,196,0.14); border-color: rgba(78,205,196,0.4); color: #4ECDC4; }
 
-/* default swatches */
-.sw-row { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 2px; }
+/* Default palette swatches */
+.sw-row { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 3px; }
 .sw {
-  width: 16px; height: 16px;
+  width: 17px; height: 17px;
   border-radius: 2px;
   cursor: pointer;
   border: 2px solid transparent;
@@ -213,32 +234,32 @@ canvas {
   flex-shrink: 0;
 }
 .sw.on  { border-color: rgba(255,255,255,0.8); }
-.sw.off { opacity: 0.16; }
+.sw.off { opacity: 0.15; }
 .sw:hover { transform: scale(1.28); z-index: 1; }
 
-/* custom slots */
+/* Custom color slots */
 .cs-row { display: flex; flex-wrap: wrap; gap: 3px; }
 .cslot {
-  width: 16px; height: 16px;
+  width: 17px; height: 17px;
   border-radius: 2px;
   border: 1.5px dashed rgba(255,255,255,0.2);
   cursor: pointer;
   position: relative;
   display: flex; align-items: center; justify-content: center;
   font-size: 10px;
-  color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.28);
   transition: opacity .15s, transform .1s;
   flex-shrink: 0;
 }
 .cslot.has { border-style: solid; border-color: transparent; color: transparent; }
 .cslot.on.has { border-color: rgba(255,255,255,0.8); }
-.cslot.off { opacity: 0.16; }
+.cslot.off { opacity: 0.15; }
 .cslot:hover { transform: scale(1.28); z-index: 1; }
 .cslot .ce {
   display: none;
   position: absolute;
   top: -4px; right: -4px;
-  width: 8px; height: 8px;
+  width: 9px; height: 9px;
   background: #4ECDC4;
   border-radius: 50%;
   font-size: 5px;
@@ -249,61 +270,57 @@ canvas {
 .cslot.has:hover .ce { display: flex; }
 #color-inputs { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; overflow: hidden; }
 
-/* bg row */
-.bg-row { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+/* BG color picker row */
+.bg-row { display: flex; align-items: center; gap: 5px; margin-top: 4px; }
 .bg-row label { font-size: 9px; color: rgba(255,255,255,0.4); }
 .bg-row input[type=color] {
-  width: 26px; height: 16px;
-  border: 1px solid rgba(255,255,255,0.13);
+  width: 28px; height: 17px;
+  border: 1px solid rgba(255,255,255,0.14);
   border-radius: 2px;
   cursor: pointer; padding: 1px; background: none;
 }
 
-/* auto-fire button */
+/* Auto-fire button */
 .af-btn {
   width: 100%;
   padding: 3px 0;
   background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.09);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 3px;
   color: rgba(255,255,255,0.45);
   font: 8.5px/1 'Courier New', monospace;
   letter-spacing: 0.05em;
-  cursor: pointer;
-  text-align: center;
+  cursor: pointer; text-align: center;
   margin-bottom: 3px;
   transition: all .12s;
   text-transform: uppercase;
 }
-.af-btn.on { background: rgba(251,191,36,0.13); border-color: rgba(251,191,36,0.38); color: #fbbf24; }
+.af-btn.on { background: rgba(251,191,36,0.13); border-color: rgba(251,191,36,0.4); color: #fbbf24; }
 
-/* preset select */
+/* Preset select */
 .p-sel {
   width: 100%;
   background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.09);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 3px;
   color: rgba(255,255,255,0.6);
   font: 9px/1 'Courier New', monospace;
   padding: 3px 4px;
-  cursor: pointer;
-  margin-bottom: 2px;
+  cursor: pointer; margin-bottom: 2px;
 }
 
-/* action buttons */
+/* Action buttons */
 .ab {
   width: 100%;
-  padding: 4px 5px;
+  padding: 4px 6px;
   background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.09);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 3px;
   color: rgba(255,255,255,0.5);
   font: 9px/1 'Courier New', monospace;
   letter-spacing: 0.04em;
-  cursor: pointer;
-  margin-bottom: 3px;
-  text-align: left;
-  text-transform: uppercase;
+  cursor: pointer; margin-bottom: 3px;
+  text-align: left; text-transform: uppercase;
   transition: background .12s, color .12s;
   white-space: nowrap;
 }
@@ -317,8 +334,7 @@ canvas {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.82);
   z-index: 200;
-  align-items: center;
-  justify-content: center;
+  align-items: center; justify-content: center;
   padding: 14px;
 }
 #out-modal.open { display: flex; }
@@ -328,21 +344,18 @@ canvas {
   border-radius: 8px;
   width: min(820px, 100%);
   max-height: 88vh;
-  display: flex;
-  flex-direction: column;
+  display: flex; flex-direction: column;
   overflow: hidden;
   box-shadow: 0 0 50px rgba(78,205,196,0.07);
 }
 .m-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex; align-items: center; gap: 8px;
   padding: 11px 13px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   flex-shrink: 0;
 }
 .m-head h2 { flex: 1; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #4ECDC4; }
-.m-head p  { font-size: 9.5px; color: rgba(255,255,255,0.3); }
+.m-head p  { font-size: 9px; color: rgba(255,255,255,0.3); }
 .m-copy {
   padding: 4px 13px;
   background: #4ECDC4; border: none; border-radius: 3px;
@@ -352,31 +365,21 @@ canvas {
 .m-close {
   padding: 4px 9px;
   background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.11);
-  border-radius: 3px;
-  color: rgba(255,255,255,0.45);
-  font: 9.5px/1 'Courier New', monospace;
-  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 3px; color: rgba(255,255,255,0.45);
+  font: 9.5px/1 'Courier New', monospace; cursor: pointer;
 }
 #out-code {
   flex: 1; overflow: auto;
-  margin: 9px 11px;
-  padding: 11px 13px;
-  background: #05050f;
-  border-radius: 4px;
+  margin: 9px 11px; padding: 11px 13px;
+  background: #05050f; border-radius: 4px;
   font: 11px/1.65 'Courier New', monospace;
-  color: #9dd8c0;
-  white-space: pre;
-  tab-size: 2;
+  color: #9dd8c0; white-space: pre; tab-size: 2;
 }
 #out-fb {
-  text-align: center;
-  font-size: 9.5px;
-  letter-spacing: 0.06em;
-  color: #4ECDC4;
-  padding: 0 13px 9px;
-  min-height: 20px;
-  flex-shrink: 0;
+  text-align: center; font-size: 9.5px;
+  letter-spacing: 0.06em; color: #4ECDC4;
+  padding: 0 13px 9px; min-height: 20px; flex-shrink: 0;
 }
 </style>
 </head>
@@ -395,153 +398,156 @@ canvas {
   <button id="launch-center-btn">🚀 Launch from Center</button>
 </div>
 
-<!-- CONTROL PANEL -->
+<!-- CONTROL PANEL — 2 rows, no horizontal scroll -->
 <div id="panel">
 
-  <!-- SPAWN -->
-  <div class="ps" style="min-width:162px">
-    <div class="pt">Spawn</div>
-    <div class="sr">
-      <label>Count</label>
-      <span class="sv" id="v_count">120</span>
-      <input type="range" id="s_count" min="10" max="500" step="5" value="120">
-    </div>
-    <div class="sr">
-      <label>Spread px</label>
-      <span class="sv" id="v_spread">60</span>
-      <input type="range" id="s_spread" min="0" max="300" step="5" value="60">
-    </div>
-    <div class="pt sub">Shapes <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">— multi-select</span></div>
-    <div class="shape-row">
-      <button class="sb on" data-shape="rect"   title="Rectangle">▬</button>
-      <button class="sb"    data-shape="circle" title="Circle">●</button>
-      <button class="sb"    data-shape="star"   title="Star">★</button>
-      <button class="sb"    data-shape="tri"    title="Triangle">▲</button>
-      <button class="sb"    data-shape="line"   title="Ribbon">━</button>
-    </div>
-  </div>
+  <!-- ROW 1: physics/spawn settings -->
+  <div class="pr">
 
-  <!-- VELOCITY -->
-  <div class="ps" style="min-width:158px">
-    <div class="pt">Velocity</div>
-    <div class="sr">
-      <label>Horizontal</label>
-      <span class="sv" id="v_vx">14</span>
-      <input type="range" id="s_vx" min="0" max="30" step="0.5" value="14">
+    <div class="ps">
+      <div class="pt">Spawn</div>
+      <div class="sr">
+        <label>Count</label>
+        <span class="sv" id="v_count">120</span>
+        <input type="range" id="s_count" min="10" max="500" step="5" value="120">
+      </div>
+      <div class="sr">
+        <label>Spread px</label>
+        <span class="sv" id="v_spread">60</span>
+        <input type="range" id="s_spread" min="0" max="300" step="5" value="60">
+      </div>
+      <div class="pt sub">Shapes <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">— multi-select</span></div>
+      <div class="shape-row">
+        <button class="sb on" data-shape="rect"   title="Rectangle">▬</button>
+        <button class="sb"    data-shape="circle" title="Circle">●</button>
+        <button class="sb"    data-shape="star"   title="Star">★</button>
+        <button class="sb"    data-shape="tri"    title="Triangle">▲</button>
+        <button class="sb"    data-shape="line"   title="Ribbon">━</button>
+      </div>
     </div>
-    <div class="sr">
-      <label>Launch up</label>
-      <span class="sv" id="v_vy">16</span>
-      <input type="range" id="s_vy" min="1" max="40" step="0.5" value="16">
-    </div>
-    <div class="sr">
-      <label>Min upward</label>
-      <span class="sv" id="v_vyMin">4</span>
-      <input type="range" id="s_vyMin" min="0" max="20" step="0.5" value="4">
-    </div>
-    <div class="sr">
-      <label>Wind drift</label>
-      <span class="sv" id="v_wind">0.00</span>
-      <input type="range" id="s_wind" min="-3" max="3" step="0.05" value="0">
-    </div>
-  </div>
 
-  <!-- PHYSICS -->
-  <div class="ps" style="min-width:158px">
-    <div class="pt">Physics</div>
-    <div class="sr">
-      <label>Gravity</label>
-      <span class="sv" id="v_gravity">0.25</span>
-      <input type="range" id="s_gravity" min="0" max="2" step="0.01" value="0.25">
+    <div class="ps">
+      <div class="pt">Velocity</div>
+      <div class="sr">
+        <label>Horizontal</label>
+        <span class="sv" id="v_vx">14</span>
+        <input type="range" id="s_vx" min="0" max="30" step="0.5" value="14">
+      </div>
+      <div class="sr">
+        <label>Launch up</label>
+        <span class="sv" id="v_vy">16</span>
+        <input type="range" id="s_vy" min="1" max="40" step="0.5" value="16">
+      </div>
+      <div class="sr">
+        <label>Min upward</label>
+        <span class="sv" id="v_vyMin">4</span>
+        <input type="range" id="s_vyMin" min="0" max="20" step="0.5" value="4">
+      </div>
+      <div class="sr">
+        <label>Wind drift</label>
+        <span class="sv" id="v_wind">0.00</span>
+        <input type="range" id="s_wind" min="-3" max="3" step="0.05" value="0">
+      </div>
     </div>
-    <div class="sr">
-      <label>Air drag %</label>
-      <span class="sv" id="v_drag">0%</span>
-      <input type="range" id="s_drag" min="0.9" max="1" step="0.002" value="1">
-    </div>
-    <div class="sr">
-      <label>Spin speed</label>
-      <span class="sv" id="v_spin">0.30</span>
-      <input type="range" id="s_spin" min="0" max="0.5" step="0.01" value="0.3">
-    </div>
-    <div class="sr">
-      <label>Fade rate</label>
-      <span class="sv" id="v_fade">0.005</span>
-      <input type="range" id="s_fade" min="0.001" max="0.04" step="0.001" value="0.005">
-    </div>
-  </div>
 
-  <!-- SIZE -->
-  <div class="ps" style="min-width:152px">
-    <div class="pt">Particle Size</div>
-    <div class="sr">
-      <label>Max width</label>
-      <span class="sv" id="v_w">8</span>
-      <input type="range" id="s_w" min="2" max="50" step="1" value="8">
+    <div class="ps">
+      <div class="pt">Physics</div>
+      <div class="sr">
+        <label>Gravity</label>
+        <span class="sv" id="v_gravity">0.25</span>
+        <input type="range" id="s_gravity" min="0" max="2" step="0.01" value="0.25">
+      </div>
+      <div class="sr">
+        <label>Air drag %</label>
+        <span class="sv" id="v_drag">0%</span>
+        <input type="range" id="s_drag" min="0.9" max="1" step="0.002" value="1">
+      </div>
+      <div class="sr">
+        <label>Spin speed</label>
+        <span class="sv" id="v_spin">0.30</span>
+        <input type="range" id="s_spin" min="0" max="0.5" step="0.01" value="0.3">
+      </div>
+      <div class="sr">
+        <label>Fade rate</label>
+        <span class="sv" id="v_fade">0.005</span>
+        <input type="range" id="s_fade" min="0.001" max="0.04" step="0.001" value="0.005">
+      </div>
     </div>
-    <div class="sr">
-      <label>Max height</label>
-      <span class="sv" id="v_h">6</span>
-      <input type="range" id="s_h" min="1" max="50" step="1" value="6">
-    </div>
-    <div class="sr">
-      <label>Variance</label>
-      <span class="sv" id="v_sizeVar">50%</span>
-      <input type="range" id="s_sizeVar" min="0" max="1" step="0.05" value="0.5">
-    </div>
-  </div>
 
-  <!-- COLORS -->
-  <div class="ps" style="min-width:190px">
-    <div class="pt">Palette <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">click=toggle</span></div>
-    <div class="sw-row" id="sw-default"></div>
-    <div class="pt sub">Custom <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">+=pick · click=toggle · hover=edit</span></div>
-    <div class="cs-row" id="sw-custom"></div>
-    <div class="bg-row">
-      <label>BG</label>
-      <input type="color" id="bg-color" value="#1a1a2e" title="Test area background color">
-      <label id="bg-label" style="font-size:8px;opacity:.32">#1a1a2e</label>
+    <div class="ps">
+      <div class="pt">Particle Size</div>
+      <div class="sr">
+        <label>Max width</label>
+        <span class="sv" id="v_w">8</span>
+        <input type="range" id="s_w" min="2" max="50" step="1" value="8">
+      </div>
+      <div class="sr">
+        <label>Max height</label>
+        <span class="sv" id="v_h">6</span>
+        <input type="range" id="s_h" min="1" max="50" step="1" value="6">
+      </div>
+      <div class="sr">
+        <label>Variance</label>
+        <span class="sv" id="v_sizeVar">50%</span>
+        <input type="range" id="s_sizeVar" min="0" max="1" step="0.05" value="0.5">
+      </div>
     </div>
-  </div>
 
-  <!-- MODE -->
-  <div class="ps" style="min-width:154px">
-    <div class="pt">Launch Mode</div>
-    <div class="mode-row">
-      <button class="mb on" data-mode="burst">💥 Burst</button>
-      <button class="mb"    data-mode="rain">🌧 Rain</button>
-      <button class="mb"    data-mode="fountain">⛲ Fount</button>
-    </div>
-    <button class="af-btn" id="af-btn">▶ Auto-fire: Off</button>
-    <div class="sr dim" id="rate-row">
-      <label>Rate (sec)</label>
-      <span class="sv" id="v_rate">2.0</span>
-      <input type="range" id="s_rate" min="0.3" max="6" step="0.1" value="2">
-    </div>
-    <div class="pt sub">Preset</div>
-    <select class="p-sel" id="preset-sel">
-      <option value="">— Load preset —</option>
-      <option value="default">🎉 Default</option>
-      <option value="gentle">🌸 Gentle</option>
-      <option value="fireworks">🎆 Fireworks</option>
-      <option value="blizzard">❄️ Blizzard</option>
-      <option value="party">🥳 Party</option>
-      <option value="subtle">✨ Subtle</option>
-    </select>
-  </div>
+  </div><!-- /pr row 1 -->
 
-  <!-- ACTIONS -->
-  <div class="ps" style="min-width:116px">
-    <div class="pt">Output</div>
-    <button class="ab hi" id="out-btn">📋 Export Code</button>
-    <button class="ab"    id="clear-btn">🧹 Clear Canvas</button>
-    <button class="ab"    id="reset-btn">↩ Reset All</button>
-    <div style="margin-top:auto;font-size:7.5px;color:rgba(255,255,255,0.12);
-                letter-spacing:.08em;padding-top:5px;text-align:center;line-height:1.8">
-      CONFETTI LAB v3.0<br>
-      <span style="font-size:7px;opacity:.7">[SPACE]=center<br>drag=stream</span>
+  <!-- ROW 2: color, mode, output -->
+  <div class="pr">
+
+    <div class="ps" style="flex:1.6">
+      <div class="pt">Palette <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">click=toggle</span></div>
+      <div class="sw-row" id="sw-default"></div>
+      <div class="pt sub">Custom <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">+=pick · click=toggle · hover=edit</span></div>
+      <div class="cs-row" id="sw-custom"></div>
+      <div class="bg-row">
+        <label>BG</label>
+        <input type="color" id="bg-color" value="#1a1a2e" title="Test area background">
+        <label id="bg-label" style="font-size:8px;opacity:.32">#1a1a2e</label>
+      </div>
     </div>
-  </div>
+
+    <div class="ps" style="flex:1.3">
+      <div class="pt">Launch Mode</div>
+      <div class="mode-row">
+        <button class="mb on" data-mode="burst">💥 Burst</button>
+        <button class="mb"    data-mode="rain">🌧 Rain</button>
+        <button class="mb"    data-mode="fountain">⛲ Fount</button>
+      </div>
+      <button class="af-btn" id="af-btn">▶ Auto-fire: Off</button>
+      <div class="sr dim" id="rate-row">
+        <label>Rate (sec)</label>
+        <span class="sv" id="v_rate">2.0</span>
+        <input type="range" id="s_rate" min="0.3" max="6" step="0.1" value="2">
+      </div>
+      <div class="pt sub">Preset</div>
+      <select class="p-sel" id="preset-sel">
+        <option value="">— Load preset —</option>
+        <option value="default">🎉 Default</option>
+        <option value="gentle">🌸 Gentle</option>
+        <option value="fireworks">🎆 Fireworks</option>
+        <option value="blizzard">❄️ Blizzard</option>
+        <option value="party">🥳 Party</option>
+        <option value="subtle">✨ Subtle</option>
+      </select>
+    </div>
+
+    <div class="ps">
+      <div class="pt">Output</div>
+      <button class="ab hi" id="out-btn">📋 Export Code</button>
+      <button class="ab"    id="clear-btn">🧹 Clear Canvas</button>
+      <button class="ab"    id="reset-btn">↩ Reset All</button>
+      <div style="margin-top:auto;font-size:7.5px;color:rgba(255,255,255,0.12);
+                  letter-spacing:.08em;padding-top:4px;text-align:center;line-height:1.8">
+        CONFETTI LAB v3.1<br>
+        <span style="font-size:7px;opacity:.7">[SPACE]=center · drag=stream</span>
+      </div>
+    </div>
+
+  </div><!-- /pr row 2 -->
 
 </div><!-- /panel -->
 
@@ -551,7 +557,7 @@ canvas {
     <div class="m-head">
       <div style="flex:1">
         <h2>📋 Export Confetti Code</h2>
-        <p>Paste before &lt;/body&gt; in your page · wire up: launchConfetti(x, y)</p>
+        <p>Paste before &lt;/body&gt; · call launchConfetti(x, y)</p>
       </div>
       <button class="m-copy"  id="m-copy-btn">Copy All</button>
       <button class="m-close" id="m-close-btn">✕ Close</button>
@@ -563,16 +569,16 @@ canvas {
 
 <script>
 
-// ═══════════════════════════════════════════════════
-//  Confetti Lab v3.0 — JavaScript
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+//  Confetti Lab java script 
+// ═══════════════════════════════════════════
 
 const testArea = document.getElementById('test-area');
 const canvas   = document.getElementById('c');
 const ctx      = canvas.getContext('2d');
 const pcEl     = document.getElementById('particle-count');
 
-// ── Canvas resize ──────────────────────────────────
+// ── Canvas resize ──────────────────────────
 function resize() {
   const dpr = window.devicePixelRatio || 1;
   const r   = testArea.getBoundingClientRect();
@@ -583,13 +589,13 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
-// ── BG color ───────────────────────────────────────
+// ── BG color ───────────────────────────────
 document.getElementById('bg-color').addEventListener('input', e => {
   testArea.style.background = e.target.value;
   document.getElementById('bg-label').textContent = e.target.value;
 });
 
-// ── Default palette ────────────────────────────────
+// ── Default palette ────────────────────────
 const PALETTE_HEX = [
   '#FF6B6B','#4ECDC4','#45B7D1','#FFEAA7','#DDA0DD',
   '#F7DC6F','#BB8FCE','#85C1E9','#F0B27A','#82E0AA'
@@ -609,13 +615,13 @@ palette.forEach(c => {
   swDefault.appendChild(el);
 });
 
-// ── Custom color slots (8) ─────────────────────────
+// ── Custom color slots (8) ─────────────────
 const customPalette = Array.from({ length: 8 }, () => ({ hex: null, on: false }));
 const swCustom = document.getElementById('sw-custom');
 const colorInputsCont = document.getElementById('color-inputs');
 
 customPalette.forEach(c => {
-  const slot = document.createElement('div');
+  const slot  = document.createElement('div');
   slot.className = 'cslot';
   slot.appendChild(document.createTextNode('+'));
 
@@ -644,7 +650,7 @@ customPalette.forEach(c => {
       if (![...slot.childNodes].some(n => n.nodeType === 3)) {
         slot.insertBefore(document.createTextNode('+'), badge);
       }
-      slot.classList.remove('has', 'on', 'off');
+      slot.classList.remove('has','on','off');
       slot.title = 'Click to pick color';
     }
   }
@@ -660,7 +666,7 @@ customPalette.forEach(c => {
   refresh();
 });
 
-// ── Active color list ──────────────────────────────
+// ── Active colors ──────────────────────────
 function getColors() {
   const a = [
     ...palette.filter(c => c.on).map(c => c.hex),
@@ -669,7 +675,7 @@ function getColors() {
   return a.length ? a : PALETTE_HEX;
 }
 
-// ── Slider wiring ──────────────────────────────────
+// ── Slider wiring ──────────────────────────
 const DEFAULTS = {
   count:120, spread:60, vx:14, vy:16, vyMin:4,
   wind:0, gravity:0.25, drag:1, spin:0.3, fade:0.005,
@@ -689,15 +695,12 @@ Object.keys(DEFAULTS).forEach(key => {
   const inp = document.getElementById('s_' + key);
   const val = document.getElementById('v_' + key);
   if (!inp || !val) return;
-  const upd = () => {
-    cfg[key] = parseFloat(inp.value);
-    val.textContent = FMT[key] ? FMT[key](inp.value) : inp.value;
-  };
+  const upd = () => { cfg[key] = parseFloat(inp.value); val.textContent = FMT[key] ? FMT[key](inp.value) : inp.value; };
   inp.addEventListener('input', upd);
   upd();
 });
 
-// ── Shape selection ────────────────────────────────
+// ── Shape selection ────────────────────────
 let activeShapes = ['rect'];
 document.querySelectorAll('.sb').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -707,7 +710,7 @@ document.querySelectorAll('.sb').forEach(btn => {
   });
 });
 
-// ── Particle system ────────────────────────────────
+// ── Particles ─────────────────────────────
 let particles = [], animId = null;
 
 function mkParticle(x, y, ov = {}) {
@@ -716,8 +719,8 @@ function mkParticle(x, y, ov = {}) {
     x: x + (Math.random() - 0.5) * cfg.spread, y,
     vx: (Math.random() - 0.5) * cfg.vx,
     vy: -(Math.random() * cfg.vy + cfg.vyMin),
-    w: cfg.w * (1 - vm * 0.5) + Math.random() * cfg.w * vm,
-    h: cfg.h * (1 - vm * 0.5) + Math.random() * cfg.h * vm,
+    w:  cfg.w * (1 - vm * 0.5) + Math.random() * cfg.w * vm,
+    h:  cfg.h * (1 - vm * 0.5) + Math.random() * cfg.h * vm,
     color:    colors[Math.floor(Math.random() * colors.length)],
     rotation: Math.random() * Math.PI * 2,
     rv:       (Math.random() - 0.5) * cfg.spin,
@@ -731,27 +734,20 @@ function drawShape(p) {
   const hw = p.w / 2, hh = p.h / 2;
   ctx.fillStyle = p.color;
   switch (p.shape) {
-    case 'rect':
-      ctx.fillRect(-hw, -hh, p.w, p.h); break;
-    case 'circle':
-      ctx.beginPath(); ctx.ellipse(0, 0, hw, hh, 0, 0, Math.PI * 2); ctx.fill(); break;
-    case 'tri':
-      ctx.beginPath(); ctx.moveTo(0, -hh); ctx.lineTo(hw, hh); ctx.lineTo(-hw, hh);
-      ctx.closePath(); ctx.fill(); break;
+    case 'rect':   ctx.fillRect(-hw,-hh,p.w,p.h); break;
+    case 'circle': ctx.beginPath(); ctx.ellipse(0,0,hw,hh,0,0,Math.PI*2); ctx.fill(); break;
+    case 'tri':    ctx.beginPath(); ctx.moveTo(0,-hh); ctx.lineTo(hw,hh); ctx.lineTo(-hw,hh); ctx.closePath(); ctx.fill(); break;
     case 'star': {
-      const r = Math.max(hw, hh), ri = r * 0.38;
+      const r = Math.max(hw,hh), ri = r * 0.38;
       ctx.beginPath();
       for (let i = 0; i < 10; i++) {
-        const a = i * Math.PI / 5 - Math.PI / 2, d = i % 2 === 0 ? r : ri;
-        i ? ctx.lineTo(Math.cos(a) * d, Math.sin(a) * d)
-          : ctx.moveTo(Math.cos(a) * d, Math.sin(a) * d);
+        const a = i*Math.PI/5 - Math.PI/2, d = i%2===0 ? r : ri;
+        i ? ctx.lineTo(Math.cos(a)*d, Math.sin(a)*d) : ctx.moveTo(Math.cos(a)*d, Math.sin(a)*d);
       }
       ctx.closePath(); ctx.fill(); break;
     }
-    case 'line': {
-      const l = Math.max(hw, hh) * 2; ctx.fillRect(-l / 2, -1.5, l, 3); break;
-    }
-    default: ctx.fillRect(-hw, -hh, p.w, p.h);
+    case 'line': { const l = Math.max(hw,hh)*2; ctx.fillRect(-l/2,-1.5,l,3); break; }
+    default: ctx.fillRect(-hw,-hh,p.w,p.h);
   }
 }
 
@@ -761,7 +757,6 @@ function animate() {
   ctx.clearRect(0, 0, W, H);
   let alive = false;
   const { drag, gravity: grav, wind, fade } = cfg;
-
   for (const p of particles) {
     p.vx = (p.vx + wind * 0.01) * drag;
     p.vy = p.vy * drag + grav;
@@ -777,17 +772,10 @@ function animate() {
     drawShape(p);
     ctx.restore();
   }
-
   if (++fc % 90 === 0) particles = particles.filter(p => p.alpha > 0 && p.y < H + 80);
-  if (fc % 10 === 0)   pcEl.textContent = 'particles: ' + particles.filter(p => p.alpha > 0).length;
-
-  if (alive) {
-    animId = requestAnimationFrame(animate);
-  } else {
-    particles = []; animId = null;
-    pcEl.textContent = 'particles: 0';
-    ctx.clearRect(0, 0, W, H);
-  }
+  if (fc % 10 === 0) pcEl.textContent = 'particles: ' + particles.filter(p => p.alpha > 0).length;
+  if (alive) { animId = requestAnimationFrame(animate); }
+  else { particles = []; animId = null; pcEl.textContent = 'particles: 0'; ctx.clearRect(0,0,W,H); }
 }
 function tick() { if (!animId) animId = requestAnimationFrame(animate); }
 
@@ -798,21 +786,20 @@ function burst(x, y) {
 function spawnRain() {
   const W = testArea.clientWidth;
   for (let i = 0; i < Math.max(5, Math.round(cfg.count * 0.12)); i++)
-    particles.push(mkParticle(Math.random() * W, -12,
-      { vy: Math.random() * 3 + 1, vx: (Math.random() - 0.5) * cfg.vx * 0.35 }));
+    particles.push(mkParticle(Math.random()*W, -12, { vy: Math.random()*3+1, vx: (Math.random()-.5)*cfg.vx*0.35 }));
   tick();
 }
 function spawnFountain() {
   const W = testArea.clientWidth, H = testArea.clientHeight;
   for (let i = 0; i < Math.max(5, Math.round(cfg.count * 0.1)); i++)
-    particles.push(mkParticle(W / 2 + (Math.random() - 0.5) * 40, H - 10, {
-      vx: (Math.random() - 0.5) * cfg.vx * 0.5,
-      vy: -(Math.random() * cfg.vy * 0.75 + cfg.vyMin),
+    particles.push(mkParticle(W/2+(Math.random()-.5)*40, H-10, {
+      vx: (Math.random()-.5)*cfg.vx*0.5,
+      vy: -(Math.random()*cfg.vy*0.75+cfg.vyMin),
     }));
   tick();
 }
 
-// ── Mode & auto-fire ───────────────────────────────
+// ── Mode & auto-fire ───────────────────────
 let mode = 'burst', afOn = false, afInterval = null, afRate = 2;
 
 document.querySelectorAll('.mb').forEach(btn => {
@@ -845,12 +832,12 @@ function fireAuto() {
   const W = testArea.clientWidth, H = testArea.clientHeight;
   if (mode === 'rain') spawnRain();
   else if (mode === 'fountain') spawnFountain();
-  else burst(W * 0.2 + Math.random() * W * 0.6, H * 0.35 + Math.random() * H * 0.3);
+  else burst(W*0.2+Math.random()*W*0.6, H*0.35+Math.random()*H*0.3);
 }
-function startAF() { stopAF(); fireAuto(); afInterval = setInterval(fireAuto, afRate * 1000); }
+function startAF() { stopAF(); fireAuto(); afInterval = setInterval(fireAuto, afRate*1000); }
 function stopAF()  { clearInterval(afInterval); afInterval = null; }
 
-// ── Launch interactions ────────────────────────────
+// ── Launch interactions ────────────────────
 const hint = document.getElementById('test-hint');
 let hintGone = false;
 
@@ -868,9 +855,7 @@ testArea.addEventListener('click', e => {
 });
 
 let dragging = false;
-testArea.addEventListener('mousedown', e => {
-  if (!e.target.closest('#launch-center-btn')) dragging = true;
-});
+testArea.addEventListener('mousedown', e => { if (!e.target.closest('#launch-center-btn')) dragging = true; });
 testArea.addEventListener('mousemove', e => {
   if (!dragging) return;
   const r = testArea.getBoundingClientRect();
@@ -882,17 +867,16 @@ testArea.addEventListener('mousemove', e => {
 window.addEventListener('mouseup', () => dragging = false);
 
 document.getElementById('launch-center-btn').addEventListener('click', () => {
-  launch(testArea.clientWidth / 2, testArea.clientHeight / 2);
+  launch(testArea.clientWidth/2, testArea.clientHeight/2);
 });
-
 document.addEventListener('keydown', e => {
   if (e.code === 'Space' && !['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) {
     e.preventDefault();
-    launch(testArea.clientWidth / 2, testArea.clientHeight / 2);
+    launch(testArea.clientWidth/2, testArea.clientHeight/2);
   }
 });
 
-// ── Presets ────────────────────────────────────────
+// ── Presets ────────────────────────────────
 const PRESETS = {
   default:   { count:120, spread:60,  vx:14, vy:16, vyMin:4, wind:0,   gravity:0.25, drag:1,     spin:0.30, fade:0.005, w:8,  h:6, sizeVar:0.5 },
   gentle:    { count:50,  spread:100, vx:4,  vy:7,  vyMin:2, wind:0.5, gravity:0.10, drag:0.990, spin:0.08, fade:0.003, w:6,  h:5, sizeVar:0.7 },
@@ -904,14 +888,14 @@ const PRESETS = {
 document.getElementById('preset-sel').addEventListener('change', e => {
   const p = PRESETS[e.target.value];
   if (!p) return;
-  Object.entries(p).forEach(([k, v]) => {
-    const inp = document.getElementById('s_' + k);
+  Object.entries(p).forEach(([k,v]) => {
+    const inp = document.getElementById('s_'+k);
     if (inp) { inp.value = v; inp.dispatchEvent(new Event('input')); }
   });
   e.target.value = '';
 });
 
-// ── Clear / Reset ──────────────────────────────────
+// ── Clear / Reset ──────────────────────────
 document.getElementById('clear-btn').addEventListener('click', () => {
   particles = [];
   if (animId) { cancelAnimationFrame(animId); animId = null; }
@@ -919,155 +903,125 @@ document.getElementById('clear-btn').addEventListener('click', () => {
   pcEl.textContent = 'particles: 0';
 });
 document.getElementById('reset-btn').addEventListener('click', () => {
-  Object.entries(DEFAULTS).forEach(([k, v]) => {
-    const inp = document.getElementById('s_' + k);
+  Object.entries(DEFAULTS).forEach(([k,v]) => {
+    const inp = document.getElementById('s_'+k);
     if (inp) { inp.value = v; inp.dispatchEvent(new Event('input')); }
   });
-  const bgc = document.getElementById('bg-color');
-  bgc.value = '#1a1a2e';
+  document.getElementById('bg-color').value = '#1a1a2e';
   testArea.style.background = '#1a1a2e';
   document.getElementById('bg-label').textContent = '#1a1a2e';
-  palette.forEach((c, i) => {
-    c.on = true;
-    swDefault.children[i].classList.remove('off');
-    swDefault.children[i].classList.add('on');
-  });
+  palette.forEach((c,i) => { c.on = true; swDefault.children[i].classList.remove('off'); swDefault.children[i].classList.add('on'); });
 });
 
-// ── Export code generator ──────────────────────────
+// ── Export code ────────────────────────────
 function genCode() {
   const colors = getColors(), shapes = activeShapes, c = cfg;
-  const L = [];
-  L.push('<!-- ════════════════════════════════════════════════════════');
-  L.push('  Confetti Effect  —  generated by Confetti Lab v3.0');
-  L.push('  ──────────────────────────────────────────────────────────');
-  L.push('  1. Paste this entire block before </body> in your HTML.');
-  L.push('  2. Call launchConfetti(x, y) to fire. Examples:');
-  L.push('');
-  L.push('     // On any button:');
-  L.push('     btn.addEventListener("click", () =>');
-  L.push('       launchConfetti(innerWidth/2, innerHeight/2));');
-  L.push('');
-  L.push('     // On page click at cursor:');
-  L.push('     document.addEventListener("click", e =>');
-  L.push('       launchConfetti(e.clientX, e.clientY));');
-  L.push('════════════════════════════════════════════════════════ -->');
-  L.push('');
-  L.push('<canvas id="confetti-canvas" style="position:fixed;inset:0;');
-  L.push('  width:100%;height:100%;pointer-events:none;z-index:9999;"></canvas>');
-  L.push('');
-  L.push('<script>');
-  L.push('(function () {');
-  L.push('');
-  L.push('  /* ── Settings (exported from your Confetti Lab session) ── */');
-  L.push('  const C = {');
-  L.push('    count:   ' + Math.round(c.count)   + ',   // particles per burst');
-  L.push('    spread:  ' + c.spread               + ',   // spawn radius px around click');
-  L.push('    vx:      ' + c.vx                   + ',   // horizontal velocity (±half)');
-  L.push('    vy:      ' + c.vy                   + ',   // max upward velocity');
-  L.push('    vyMin:   ' + c.vyMin                + ',   // min upward velocity');
-  L.push('    wind:    ' + c.wind                 + ',   // drift per frame (neg=left)');
-  L.push('    gravity: ' + c.gravity              + ', // downward accel per frame');
-  L.push('    drag:    ' + c.drag                 + ',   // velocity multiplier (1=off, 0.98=some)');
-  L.push('    spin:    ' + c.spin                 + ',  // tumble rad/frame');
-  L.push('    fade:    ' + c.fade                 + ', // alpha loss per frame');
-  L.push('    wMax:    ' + c.w                    + ',   // max particle width px');
-  L.push('    hMax:    ' + c.h                    + ',   // max particle height px');
-  L.push('    sizeVar: ' + c.sizeVar              + ',  // size randomness: 0=uniform, 1=max');
-  L.push('    shapes: '  + JSON.stringify(shapes) + ',  // rect | circle | star | tri | line');
-  L.push('    colors: [');
-  colors.forEach(h => L.push('      ' + JSON.stringify(h) + ','));
-  L.push('    ],');
-  L.push('  };');
-  L.push('');
-  L.push('  /* ── Canvas setup ──────────────────────────────────────── */');
-  L.push('  const cv = document.getElementById("confetti-canvas");');
-  L.push('  const cx = cv.getContext("2d");');
-  L.push('  function resize() {');
-  L.push('    const d = devicePixelRatio || 1;');
-  L.push('    cv.width = innerWidth * d; cv.height = innerHeight * d;');
-  L.push('    cx.setTransform(d, 0, 0, d, 0, 0);');
-  L.push('  }');
-  L.push('  resize();');
-  L.push('  window.addEventListener("resize", resize);');
-  L.push('');
-  L.push('  /* ── Particle pool ─────────────────────────────────────── */');
-  L.push('  let P = [], rid = null;');
-  L.push('');
-  L.push('  window.launchConfetti = function (x, y) {');
-  L.push('    const vm = C.sizeVar;');
-  L.push('    for (let i = 0; i < C.count; i++) P.push({');
-  L.push('      x: x + (Math.random() - 0.5) * C.spread, y,');
-  L.push('      vx: (Math.random() - 0.5) * C.vx,');
-  L.push('      vy: -(Math.random() * C.vy + C.vyMin),');
-  L.push('      w: C.wMax * (1 - vm * 0.5) + Math.random() * C.wMax * vm,');
-  L.push('      h: C.hMax * (1 - vm * 0.5) + Math.random() * C.hMax * vm,');
-  L.push('      color: C.colors[Math.floor(Math.random() * C.colors.length)],');
-  L.push('      rotation: Math.random() * Math.PI * 2,');
-  L.push('      rv: (Math.random() - 0.5) * C.spin,');
-  L.push('      alpha: 1,');
-  L.push('      shape: C.shapes[Math.floor(Math.random() * C.shapes.length)],');
-  L.push('    });');
-  L.push('    if (!rid) rid = requestAnimationFrame(tick);');
-  L.push('  };');
-  L.push('');
-  L.push('  /* ── Shape renderer ────────────────────────────────────── */');
-  L.push('  function draw(p) {');
-  L.push('    const hw = p.w / 2, hh = p.h / 2;');
-  L.push('    cx.fillStyle = p.color;');
-  L.push('    switch (p.shape) {');
-  L.push('      case "rect": cx.fillRect(-hw,-hh,p.w,p.h); break;');
-  L.push('      case "circle":');
-  L.push('        cx.beginPath(); cx.ellipse(0,0,hw,hh,0,0,Math.PI*2); cx.fill(); break;');
-  L.push('      case "tri":');
-  L.push('        cx.beginPath(); cx.moveTo(0,-hh); cx.lineTo(hw,hh); cx.lineTo(-hw,hh);');
-  L.push('        cx.closePath(); cx.fill(); break;');
-  L.push('      case "star": {');
-  L.push('        const r = Math.max(hw,hh), ri = r * 0.38;');
-  L.push('        cx.beginPath();');
-  L.push('        for (let i = 0; i < 10; i++) {');
-  L.push('          const a = i*Math.PI/5 - Math.PI/2, d = i%2===0 ? r : ri;');
-  L.push('          i ? cx.lineTo(Math.cos(a)*d, Math.sin(a)*d)');
-  L.push('            : cx.moveTo(Math.cos(a)*d, Math.sin(a)*d);');
-  L.push('        }');
-  L.push('        cx.closePath(); cx.fill(); break;');
-  L.push('      }');
-  L.push('      case "line": {');
-  L.push('        const l = Math.max(hw,hh)*2; cx.fillRect(-l/2,-1.5,l,3); break;');
-  L.push('      }');
-  L.push('      default: cx.fillRect(-hw,-hh,p.w,p.h);');
-  L.push('    }');
-  L.push('  }');
-  L.push('');
-  L.push('  /* ── Animation loop ─────────────────────────────────────── */');
-  L.push('  function tick() {');
-  L.push('    cx.clearRect(0, 0, innerWidth, innerHeight);');
-  L.push('    let alive = false;');
-  L.push('    for (const p of P) {');
-  L.push('      p.vx = (p.vx + C.wind * 0.01) * C.drag;');
-  L.push('      p.vy = p.vy * C.drag + C.gravity;');
-  L.push('      p.x += p.vx; p.y += p.vy;');
-  L.push('      p.rotation += p.rv;');
-  L.push('      p.alpha -= C.fade;');
-  L.push('      if (p.alpha <= 0 || p.y > innerHeight + 80) continue;');
-  L.push('      alive = true;');
-  L.push('      cx.save();');
-  L.push('      cx.globalAlpha = p.alpha;');
-  L.push('      cx.translate(p.x, p.y);');
-  L.push('      cx.rotate(p.rotation);');
-  L.push('      draw(p);');
-  L.push('      cx.restore();');
-  L.push('    }');
-  L.push('    if (alive) { rid = requestAnimationFrame(tick); }');
-  L.push('    else { P = []; rid = null; }');
-  L.push('  }');
-  L.push('');
-  L.push('})();');
-  L.push('<\/script>');
-  return L.join('\n');
+  return `<!-- ══════════════════════════════════════════════════════════
+  Confetti Effect — generated by Confetti Lab v3.1
+  ────────────────────────────────────────────────────────────
+  1. Paste this entire block before </body> in your HTML page.
+  2. Call launchConfetti(x, y) to fire. Two common wiring patterns:
+
+     // Fire at cursor on any click:
+     document.addEventListener('click', e =>
+       launchConfetti(e.clientX, e.clientY));
+
+     // Fire from center on a specific button:
+     document.getElementById('myBtn').addEventListener('click', () =>
+       launchConfetti(innerWidth / 2, innerHeight / 2));
+═══════════════════════════════════════════════════════════ -->
+
+<canvas id="confetti-canvas" style="position:fixed;inset:0;
+  width:100%;height:100%;pointer-events:none;z-index:9999;"></canvas>
+
+<script>
+(function () {
+
+  /* ── Your settings (exported from Confetti Lab session) ─ */
+  const C = {
+    count:   ${Math.round(c.count)},    // particles per burst
+    spread:  ${c.spread},   // spawn radius px around origin
+    vx:      ${c.vx},       // horizontal velocity range (±half)
+    vy:      ${c.vy},       // max upward velocity
+    vyMin:   ${c.vyMin},    // min upward velocity
+    wind:    ${c.wind},     // drift per frame (neg=left, pos=right)
+    gravity: ${c.gravity},  // downward acceleration per frame
+    drag:    ${c.drag},     // velocity multiplier (1=off, 0.98=some air)
+    spin:    ${c.spin},     // max tumble rad/frame
+    fade:    ${c.fade},  // alpha lost per frame (lower = longer life)
+    wMax:    ${c.w},        // max particle width px
+    hMax:    ${c.h},        // max particle height px
+    sizeVar: ${c.sizeVar},  // size randomness: 0=uniform 1=max
+    shapes:  ${JSON.stringify(shapes)},
+    colors:  ${JSON.stringify(colors)},
+  };
+
+  /* ── Canvas ─────────────────────────────────────────────── */
+  const cv = document.getElementById('confetti-canvas');
+  const cx = cv.getContext('2d');
+  function resize() {
+    const d = devicePixelRatio || 1;
+    cv.width = innerWidth * d; cv.height = innerHeight * d;
+    cx.setTransform(d, 0, 0, d, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  /* ── Public API ─────────────────────────────────────────── */
+  let P = [], rid = null;
+  window.launchConfetti = function (x, y) {
+    const vm = C.sizeVar;
+    for (let i = 0; i < C.count; i++) P.push({
+      x: x + (Math.random()-.5)*C.spread, y,
+      vx: (Math.random()-.5)*C.vx,
+      vy: -(Math.random()*C.vy+C.vyMin),
+      w: C.wMax*(1-vm*.5)+Math.random()*C.wMax*vm,
+      h: C.hMax*(1-vm*.5)+Math.random()*C.hMax*vm,
+      color: C.colors[Math.floor(Math.random()*C.colors.length)],
+      rotation: Math.random()*Math.PI*2,
+      rv: (Math.random()-.5)*C.spin,
+      alpha: 1,
+      shape: C.shapes[Math.floor(Math.random()*C.shapes.length)],
+    });
+    if (!rid) rid = requestAnimationFrame(tick);
+  };
+
+  /* ── Shape renderer ─────────────────────────────────────── */
+  function draw(p) {
+    const hw=p.w/2, hh=p.h/2; cx.fillStyle=p.color;
+    switch(p.shape){
+      case 'rect':cx.fillRect(-hw,-hh,p.w,p.h);break;
+      case 'circle':cx.beginPath();cx.ellipse(0,0,hw,hh,0,0,Math.PI*2);cx.fill();break;
+      case 'tri':cx.beginPath();cx.moveTo(0,-hh);cx.lineTo(hw,hh);cx.lineTo(-hw,hh);cx.closePath();cx.fill();break;
+      case 'star':{const r=Math.max(hw,hh),ri=r*.38;cx.beginPath();
+        for(let i=0;i<10;i++){const a=i*Math.PI/5-Math.PI/2,d=i%2?ri:r;
+        i?cx.lineTo(Math.cos(a)*d,Math.sin(a)*d):cx.moveTo(Math.cos(a)*d,Math.sin(a)*d);}
+        cx.closePath();cx.fill();break;}
+      case 'line':{const l=Math.max(hw,hh)*2;cx.fillRect(-l/2,-1.5,l,3);break;}
+      default:cx.fillRect(-hw,-hh,p.w,p.h);
+    }
+  }
+
+  /* ── Animation loop ─────────────────────────────────────── */
+  function tick() {
+    cx.clearRect(0,0,innerWidth,innerHeight);
+    let alive=false;
+    for(const p of P){
+      p.vx=(p.vx+C.wind*.01)*C.drag; p.vy=p.vy*C.drag+C.gravity;
+      p.x+=p.vx; p.y+=p.vy; p.rotation+=p.rv; p.alpha-=C.fade;
+      if(p.alpha<=0||p.y>innerHeight+80) continue;
+      alive=true;
+      cx.save(); cx.globalAlpha=p.alpha; cx.translate(p.x,p.y); cx.rotate(p.rotation);
+      draw(p); cx.restore();
+    }
+    if(alive){rid=requestAnimationFrame(tick);}else{P=[];rid=null;}
+  }
+
+})();
+<\/script>`;
 }
 
-// ── Modal wiring ───────────────────────────────────
+// ── Modal wiring ───────────────────────────
 const modal = document.getElementById('out-modal');
 document.getElementById('out-btn').addEventListener('click', () => {
   document.getElementById('out-code').textContent = genCode();
@@ -1088,9 +1042,8 @@ document.getElementById('m-copy-btn').addEventListener('click', () => {
     });
 });
 
-console.log('✅ Confetti Lab v3.0 loaded');
+console.log('✅ Confetti Lab v3.1 loaded');
 
 </script>
 </body>
 </html>
-
