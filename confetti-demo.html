@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<!-- confetti-demo.html v3.1 — Confetti Lab -->
-<!-- first of first block -->
+<!-- confetti-demo.html v3.0 — Confetti Lab -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -186,10 +185,9 @@ canvas {
 .sb.on { background: rgba(78,205,196,0.16); border-color: rgba(78,205,196,0.45); color: #4ECDC4; }
 
 /* mode buttons */
-.mode-row { display: flex; gap: 2px; margin-bottom: 3px; flex-wrap: wrap; }
+.mode-row { display: flex; gap: 3px; margin-bottom: 3px; }
 .mb {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 1;
   padding: 3px 2px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.09);
@@ -380,51 +378,6 @@ canvas {
   min-height: 20px;
   flex-shrink: 0;
 }
-
-/* ── MOBILE / RESPONSIVE ── */
-@media (max-width: 768px) {
-  body { overflow: auto; height: auto; min-height: 100vh; }
-
-  #test-area {
-    min-height: 55vh;
-    flex: none;
-    touch-action: none;
-  }
-  #test-hint {
-    font-size: 0.65rem;
-    white-space: normal;
-    padding: 0 12px;
-  }
-
-  #panel {
-    height: auto;
-    min-height: 0;
-    flex-direction: row;
-    flex-wrap: wrap;
-    overflow-x: hidden;
-    overflow-y: auto;
-    max-height: 45vh;
-    padding: 4px;
-  }
-  .ps {
-    min-width: 140px;
-    flex: 1 1 140px;
-    padding: 6px 8px;
-    border-right: none;
-    border-bottom: 1px solid rgba(255,255,255,0.045);
-  }
-  .pt { font-size: 9px; }
-  .sr label { font-size: 10px; }
-  .sv { font-size: 10.5px; }
-  .sr input[type=range] {
-    height: 16px;
-    max-width: none;
-  }
-  .shape-btn { min-width: 26px; min-height: 26px; font-size: 12px; }
-  .cslot { width: 24px; height: 24px; }
-  .af-btn, .ab, .p-sel { font-size: 11px; padding: 6px 8px; }
-  #launch-center-btn { font-size: 0.8rem; padding: 7px 22px; }
-}
 </style>
 </head>
 <body>
@@ -437,7 +390,7 @@ canvas {
   <div id="ch-h"></div>
   <div id="ch-v"></div>
   <div id="ch-dot"></div>
-  <div id="test-hint">Tap / click to test &nbsp;·&nbsp; drag to stream &nbsp;·&nbsp; [Space] center-launch</div>
+  <div id="test-hint">Click anywhere to test &nbsp;·&nbsp; drag to stream &nbsp;·&nbsp; [Space] center-launch</div>
   <div id="particle-count">particles: 0</div>
   <button id="launch-center-btn">🚀 Launch from Center</button>
 </div>
@@ -555,10 +508,9 @@ canvas {
   <div class="ps" style="min-width:154px">
     <div class="pt">Launch Mode</div>
     <div class="mode-row">
-      <button class="mb on" data-mode="burst">💥Burst</button>
-      <button class="mb"    data-mode="radial">🎯Radial</button>
-      <button class="mb"    data-mode="rain">🌧Rain</button>
-      <button class="mb"    data-mode="fountain">⛲Fount</button>
+      <button class="mb on" data-mode="burst">💥 Burst</button>
+      <button class="mb"    data-mode="rain">🌧 Rain</button>
+      <button class="mb"    data-mode="fountain">⛲ Fount</button>
     </div>
     <button class="af-btn" id="af-btn">▶ Auto-fire: Off</button>
     <div class="sr dim" id="rate-row">
@@ -624,8 +576,6 @@ const pcEl     = document.getElementById('particle-count');
 function resize() {
   const dpr = window.devicePixelRatio || 1;
   const r   = testArea.getBoundingClientRect();
-  canvas.style.width  = r.width  + 'px';
-  canvas.style.height = r.height + 'px';
   canvas.width  = r.width  * dpr;
   canvas.height = r.height * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -813,30 +763,22 @@ function animate() {
   const { drag, gravity: grav, wind, fade } = cfg;
 
   for (const p of particles) {
-    if (p._radial) {
-      // Radial: 360° burst with gravity + wind still applied
-      p.vx = (p.vx + wind * 0.01) * drag;
-      p.vy = p.vy * drag + grav;
-      p._scale = Math.min(p._scale + 0.018, 1.6);
-    } else {
-      p.vx = (p.vx + wind * 0.01) * drag;
-      p.vy = p.vy * drag + grav;
-    }
+    p.vx = (p.vx + wind * 0.01) * drag;
+    p.vy = p.vy * drag + grav;
     p.x += p.vx; p.y += p.vy;
     p.rotation += p.rv;
     p.alpha -= fade;
-    if (p.alpha <= 0 || (p._radial ? (p.x < -80 || p.x > W + 80 || p.y < -80 || p.y > H + 80) : p.y > H + 80)) continue;
+    if (p.alpha <= 0 || p.y > H + 80) continue;
     alive = true;
     ctx.save();
     ctx.globalAlpha = p.alpha;
     ctx.translate(p.x, p.y);
-    if (p._radial) ctx.scale(p._scale, p._scale);
     ctx.rotate(p.rotation);
     drawShape(p);
     ctx.restore();
   }
 
-  if (++fc % 90 === 0) particles = particles.filter(p => p.alpha > 0 && p.x > -80 && p.x < W + 80 && p.y < H + 80 && p.y > -80);
+  if (++fc % 90 === 0) particles = particles.filter(p => p.alpha > 0 && p.y < H + 80);
   if (fc % 10 === 0)   pcEl.textContent = 'particles: ' + particles.filter(p => p.alpha > 0).length;
 
   if (alive) {
@@ -853,20 +795,6 @@ function burst(x, y) {
   for (let i = 0; i < Math.round(cfg.count); i++) particles.push(mkParticle(x, y));
   tick();
 }
-function spawnRadial(x, y) {
-  for (let i = 0; i < Math.round(cfg.count); i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = Math.random() * cfg.vy + cfg.vyMin;
-    particles.push(mkParticle(x, y, {
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      _radial: true,
-      _scale: 0.3 + Math.random() * 0.2,
-    }));
-  }
-  tick();
-}
-
 function spawnRain() {
   const W = testArea.clientWidth;
   for (let i = 0; i < Math.max(5, Math.round(cfg.count * 0.12)); i++)
@@ -917,7 +845,6 @@ function fireAuto() {
   const W = testArea.clientWidth, H = testArea.clientHeight;
   if (mode === 'rain') spawnRain();
   else if (mode === 'fountain') spawnFountain();
-  else if (mode === 'radial') spawnRadial(W / 2, H / 2);
   else burst(W * 0.2 + Math.random() * W * 0.6, H * 0.35 + Math.random() * H * 0.3);
 }
 function startAF() { stopAF(); fireAuto(); afInterval = setInterval(fireAuto, afRate * 1000); }
@@ -931,7 +858,6 @@ function launch(x, y) {
   if (!hintGone) { hint.style.opacity = '0'; hintGone = true; }
   if (mode === 'rain') spawnRain();
   else if (mode === 'fountain') spawnFountain();
-  else if (mode === 'radial') spawnRadial(x, y);
   else burst(x, y);
 }
 
@@ -954,30 +880,6 @@ testArea.addEventListener('mousemove', e => {
   if (!hintGone) { hint.style.opacity = '0'; hintGone = true; }
 });
 window.addEventListener('mouseup', () => dragging = false);
-
-// ── Touch events (mobile Safari) ──────────────────
-testArea.addEventListener('touchstart', e => {
-  if (e.target.closest('#launch-center-btn')) return;
-  e.preventDefault();
-  dragging = true;
-  const t = e.touches[0];
-  const r = testArea.getBoundingClientRect();
-  launch(t.clientX - r.left, t.clientY - r.top);
-}, { passive: false });
-
-testArea.addEventListener('touchmove', e => {
-  if (!dragging) return;
-  e.preventDefault();
-  const t = e.touches[0];
-  const r = testArea.getBoundingClientRect();
-  for (let i = 0; i < Math.max(2, Math.round(cfg.count * 0.06)); i++)
-    particles.push(mkParticle(t.clientX - r.left, t.clientY - r.top));
-  tick();
-  if (!hintGone) { hint.style.opacity = '0'; hintGone = true; }
-}, { passive: false });
-
-window.addEventListener('touchend', () => dragging = false);
-window.addEventListener('touchcancel', () => dragging = false);
 
 document.getElementById('launch-center-btn').addEventListener('click', () => {
   launch(testArea.clientWidth / 2, testArea.clientHeight / 2);
@@ -1042,13 +944,9 @@ function genCode() {
   L.push('  1. Paste this entire block before </body> in your HTML.');
   L.push('  2. Call launchConfetti(x, y) to fire. Examples:');
   L.push('');
-  L.push('     // Side-view burst on any button:');
+  L.push('     // On any button:');
   L.push('     btn.addEventListener("click", () =>');
   L.push('       launchConfetti(innerWidth/2, innerHeight/2));');
-  L.push('');
-  L.push('     // Top-down 360° radial burst:');
-  L.push('     btn.addEventListener("click", () =>');
-  L.push('       launchConfettiRadial(innerWidth/2, innerHeight/2));');
   L.push('');
   L.push('     // On page click at cursor:');
   L.push('     document.addEventListener("click", e =>');
@@ -1113,28 +1011,6 @@ function genCode() {
   L.push('    if (!rid) rid = requestAnimationFrame(tick);');
   L.push('  };');
   L.push('');
-  L.push('  /* ── Radial launcher (top-down POV, 360° burst) ────────── */');
-  L.push('  window.launchConfettiRadial = function (x, y) {');
-  L.push('    const vm = C.sizeVar;');
-  L.push('    for (let i = 0; i < C.count; i++) {');
-  L.push('      const angle = Math.random() * Math.PI * 2;');
-  L.push('      const speed = Math.random() * C.vy + C.vyMin;');
-  L.push('      P.push({');
-  L.push('        x, y,');
-  L.push('        vx: Math.cos(angle) * speed,');
-  L.push('        vy: Math.sin(angle) * speed,');
-  L.push('        w: C.wMax * (1 - vm * 0.5) + Math.random() * C.wMax * vm,');
-  L.push('        h: C.hMax * (1 - vm * 0.5) + Math.random() * C.hMax * vm,');
-  L.push('        color: C.colors[Math.floor(Math.random() * C.colors.length)],');
-  L.push('        rotation: Math.random() * Math.PI * 2,');
-  L.push('        rv: (Math.random() - 0.5) * C.spin,');
-  L.push('        alpha: 1, _s: 0.3 + Math.random() * 0.2,');
-  L.push('        shape: C.shapes[Math.floor(Math.random() * C.shapes.length)],');
-  L.push('      });');
-  L.push('    }');
-  L.push('    if (!rid) rid = requestAnimationFrame(tick);');
-  L.push('  };');
-  L.push('');
   L.push('  /* ── Shape renderer ────────────────────────────────────── */');
   L.push('  function draw(p) {');
   L.push('    const hw = p.w / 2, hh = p.h / 2;');
@@ -1170,16 +1046,14 @@ function genCode() {
   L.push('    for (const p of P) {');
   L.push('      p.vx = (p.vx + C.wind * 0.01) * C.drag;');
   L.push('      p.vy = p.vy * C.drag + C.gravity;');
-  L.push('      if (p._s != null) p._s = Math.min(p._s + 0.018, 1.6);');
   L.push('      p.x += p.vx; p.y += p.vy;');
   L.push('      p.rotation += p.rv;');
   L.push('      p.alpha -= C.fade;');
-  L.push('      if (p.alpha <= 0 || p.x < -80 || p.x > innerWidth + 80 || p.y < -80 || p.y > innerHeight + 80) continue;');
+  L.push('      if (p.alpha <= 0 || p.y > innerHeight + 80) continue;');
   L.push('      alive = true;');
   L.push('      cx.save();');
   L.push('      cx.globalAlpha = p.alpha;');
   L.push('      cx.translate(p.x, p.y);');
-  L.push('      if (p._s != null) cx.scale(p._s, p._s);');
   L.push('      cx.rotate(p.rotation);');
   L.push('      draw(p);');
   L.push('      cx.restore();');
@@ -1214,7 +1088,7 @@ document.getElementById('m-copy-btn').addEventListener('click', () => {
     });
 });
 
-console.log('✅ Confetti Lab v3.1 loaded');
+console.log('✅ Confetti Lab v3.0 loaded');
 
 </script>
 </body>
