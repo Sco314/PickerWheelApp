@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- confetti-demo.html v3.0 — Confetti Lab -->
+<!-- confetti-demo.html v3.1 — Confetti Lab -->
 <!-- first of first block -->
 <html lang="en">
 <head>
@@ -555,6 +555,7 @@ canvas {
     <div class="pt">Launch Mode</div>
     <div class="mode-row">
       <button class="mb on" data-mode="burst">💥 Burst</button>
+      <button class="mb"    data-mode="radial">🎯 Radial</button>
       <button class="mb"    data-mode="rain">🌧 Rain</button>
       <button class="mb"    data-mode="fountain">⛲ Fount</button>
     </div>
@@ -811,22 +812,30 @@ function animate() {
   const { drag, gravity: grav, wind, fade } = cfg;
 
   for (const p of particles) {
-    p.vx = (p.vx + wind * 0.01) * drag;
-    p.vy = p.vy * drag + grav;
+    if (p._radial) {
+      // Top-down POV: no gravity/wind, scale up to simulate depth
+      p.vx *= drag;
+      p.vy *= drag;
+      p._scale = Math.min(p._scale + 0.018, 1.6);
+    } else {
+      p.vx = (p.vx + wind * 0.01) * drag;
+      p.vy = p.vy * drag + grav;
+    }
     p.x += p.vx; p.y += p.vy;
     p.rotation += p.rv;
     p.alpha -= fade;
-    if (p.alpha <= 0 || p.y > H + 80) continue;
+    if (p.alpha <= 0 || (p._radial ? (p.x < -80 || p.x > W + 80 || p.y < -80 || p.y > H + 80) : p.y > H + 80)) continue;
     alive = true;
     ctx.save();
     ctx.globalAlpha = p.alpha;
     ctx.translate(p.x, p.y);
+    if (p._radial) ctx.scale(p._scale, p._scale);
     ctx.rotate(p.rotation);
     drawShape(p);
     ctx.restore();
   }
 
-  if (++fc % 90 === 0) particles = particles.filter(p => p.alpha > 0 && p.y < H + 80);
+  if (++fc % 90 === 0) particles = particles.filter(p => p.alpha > 0 && p.x > -80 && p.x < W + 80 && p.y < H + 80 && p.y > -80);
   if (fc % 10 === 0)   pcEl.textContent = 'particles: ' + particles.filter(p => p.alpha > 0).length;
 
   if (alive) {
@@ -843,6 +852,20 @@ function burst(x, y) {
   for (let i = 0; i < Math.round(cfg.count); i++) particles.push(mkParticle(x, y));
   tick();
 }
+function spawnRadial(x, y) {
+  for (let i = 0; i < Math.round(cfg.count); i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * cfg.vy + cfg.vyMin;
+    particles.push(mkParticle(x, y, {
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      _radial: true,
+      _scale: 0.3 + Math.random() * 0.2,
+    }));
+  }
+  tick();
+}
+
 function spawnRain() {
   const W = testArea.clientWidth;
   for (let i = 0; i < Math.max(5, Math.round(cfg.count * 0.12)); i++)
@@ -863,11 +886,17 @@ function spawnFountain() {
 // ── Mode & auto-fire ───────────────────────────────
 let mode = 'burst', afOn = false, afInterval = null, afRate = 2;
 
+const gravRow = document.getElementById('s_gravity')?.closest('.sr');
+const windRow = document.getElementById('s_wind')?.closest('.sr');
+
 document.querySelectorAll('.mb').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.mb').forEach(b => b.classList.remove('on'));
     btn.classList.add('on');
     mode = btn.dataset.mode;
+    // Dim gravity/wind controls in radial mode (top-down, they don't apply)
+    if (gravRow) gravRow.classList.toggle('dim', mode === 'radial');
+    if (windRow) windRow.classList.toggle('dim', mode === 'radial');
     if (afOn) { stopAF(); startAF(); }
   });
 });
@@ -893,6 +922,7 @@ function fireAuto() {
   const W = testArea.clientWidth, H = testArea.clientHeight;
   if (mode === 'rain') spawnRain();
   else if (mode === 'fountain') spawnFountain();
+  else if (mode === 'radial') spawnRadial(W / 2, H / 2);
   else burst(W * 0.2 + Math.random() * W * 0.6, H * 0.35 + Math.random() * H * 0.3);
 }
 function startAF() { stopAF(); fireAuto(); afInterval = setInterval(fireAuto, afRate * 1000); }
@@ -906,6 +936,7 @@ function launch(x, y) {
   if (!hintGone) { hint.style.opacity = '0'; hintGone = true; }
   if (mode === 'rain') spawnRain();
   else if (mode === 'fountain') spawnFountain();
+  else if (mode === 'radial') spawnRadial(x, y);
   else burst(x, y);
 }
 
@@ -1016,9 +1047,13 @@ function genCode() {
   L.push('  1. Paste this entire block before </body> in your HTML.');
   L.push('  2. Call launchConfetti(x, y) to fire. Examples:');
   L.push('');
-  L.push('     // On any button:');
+  L.push('     // Side-view burst on any button:');
   L.push('     btn.addEventListener("click", () =>');
   L.push('       launchConfetti(innerWidth/2, innerHeight/2));');
+  L.push('');
+  L.push('     // Top-down 360° radial burst:');
+  L.push('     btn.addEventListener("click", () =>');
+  L.push('       launchConfettiRadial(innerWidth/2, innerHeight/2));');
   L.push('');
   L.push('     // On page click at cursor:');
   L.push('     document.addEventListener("click", e =>');
@@ -1083,6 +1118,28 @@ function genCode() {
   L.push('    if (!rid) rid = requestAnimationFrame(tick);');
   L.push('  };');
   L.push('');
+  L.push('  /* ── Radial launcher (top-down POV, 360° burst) ────────── */');
+  L.push('  window.launchConfettiRadial = function (x, y) {');
+  L.push('    const vm = C.sizeVar;');
+  L.push('    for (let i = 0; i < C.count; i++) {');
+  L.push('      const angle = Math.random() * Math.PI * 2;');
+  L.push('      const speed = Math.random() * C.vy + C.vyMin;');
+  L.push('      P.push({');
+  L.push('        x, y,');
+  L.push('        vx: Math.cos(angle) * speed,');
+  L.push('        vy: Math.sin(angle) * speed,');
+  L.push('        w: C.wMax * (1 - vm * 0.5) + Math.random() * C.wMax * vm,');
+  L.push('        h: C.hMax * (1 - vm * 0.5) + Math.random() * C.hMax * vm,');
+  L.push('        color: C.colors[Math.floor(Math.random() * C.colors.length)],');
+  L.push('        rotation: Math.random() * Math.PI * 2,');
+  L.push('        rv: (Math.random() - 0.5) * C.spin,');
+  L.push('        alpha: 1, _s: 0.3 + Math.random() * 0.2,');
+  L.push('        shape: C.shapes[Math.floor(Math.random() * C.shapes.length)],');
+  L.push('      });');
+  L.push('    }');
+  L.push('    if (!rid) rid = requestAnimationFrame(tick);');
+  L.push('  };');
+  L.push('');
   L.push('  /* ── Shape renderer ────────────────────────────────────── */');
   L.push('  function draw(p) {');
   L.push('    const hw = p.w / 2, hh = p.h / 2;');
@@ -1116,16 +1173,17 @@ function genCode() {
   L.push('    cx.clearRect(0, 0, innerWidth, innerHeight);');
   L.push('    let alive = false;');
   L.push('    for (const p of P) {');
-  L.push('      p.vx = (p.vx + C.wind * 0.01) * C.drag;');
-  L.push('      p.vy = p.vy * C.drag + C.gravity;');
+  L.push('      if (p._s != null) { p.vx *= C.drag; p.vy *= C.drag; p._s = Math.min(p._s + 0.018, 1.6); }');
+  L.push('      else { p.vx = (p.vx + C.wind * 0.01) * C.drag; p.vy = p.vy * C.drag + C.gravity; }');
   L.push('      p.x += p.vx; p.y += p.vy;');
   L.push('      p.rotation += p.rv;');
   L.push('      p.alpha -= C.fade;');
-  L.push('      if (p.alpha <= 0 || p.y > innerHeight + 80) continue;');
+  L.push('      if (p.alpha <= 0 || p.x < -80 || p.x > innerWidth + 80 || p.y < -80 || p.y > innerHeight + 80) continue;');
   L.push('      alive = true;');
   L.push('      cx.save();');
   L.push('      cx.globalAlpha = p.alpha;');
   L.push('      cx.translate(p.x, p.y);');
+  L.push('      if (p._s != null) cx.scale(p._s, p._s);');
   L.push('      cx.rotate(p.rotation);');
   L.push('      draw(p);');
   L.push('      cx.restore();');
@@ -1160,7 +1218,7 @@ document.getElementById('m-copy-btn').addEventListener('click', () => {
     });
 });
 
-console.log('✅ Confetti Lab v3.0 loaded');
+console.log('✅ Confetti Lab v3.1 loaded');
 
 </script>
 </body>
