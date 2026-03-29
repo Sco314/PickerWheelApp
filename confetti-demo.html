@@ -813,9 +813,9 @@ function animate() {
 
   for (const p of particles) {
     if (p._radial) {
-      // Top-down POV: no gravity/wind, scale up to simulate depth
-      p.vx *= drag;
-      p.vy *= drag;
+      // Radial: 360° burst with gravity + wind still applied
+      p.vx = (p.vx + wind * 0.01) * drag;
+      p.vy = p.vy * drag + grav;
       p._scale = Math.min(p._scale + 0.018, 1.6);
     } else {
       p.vx = (p.vx + wind * 0.01) * drag;
@@ -886,17 +886,11 @@ function spawnFountain() {
 // ── Mode & auto-fire ───────────────────────────────
 let mode = 'burst', afOn = false, afInterval = null, afRate = 2;
 
-const gravRow = document.getElementById('s_gravity')?.closest('.sr');
-const windRow = document.getElementById('s_wind')?.closest('.sr');
-
 document.querySelectorAll('.mb').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.mb').forEach(b => b.classList.remove('on'));
     btn.classList.add('on');
     mode = btn.dataset.mode;
-    // Dim gravity/wind controls in radial mode (top-down, they don't apply)
-    if (gravRow) gravRow.classList.toggle('dim', mode === 'radial');
-    if (windRow) windRow.classList.toggle('dim', mode === 'radial');
     if (afOn) { stopAF(); startAF(); }
   });
 });
@@ -1173,8 +1167,9 @@ function genCode() {
   L.push('    cx.clearRect(0, 0, innerWidth, innerHeight);');
   L.push('    let alive = false;');
   L.push('    for (const p of P) {');
-  L.push('      if (p._s != null) { p.vx *= C.drag; p.vy *= C.drag; p._s = Math.min(p._s + 0.018, 1.6); }');
-  L.push('      else { p.vx = (p.vx + C.wind * 0.01) * C.drag; p.vy = p.vy * C.drag + C.gravity; }');
+  L.push('      p.vx = (p.vx + C.wind * 0.01) * C.drag;');
+  L.push('      p.vy = p.vy * C.drag + C.gravity;');
+  L.push('      if (p._s != null) p._s = Math.min(p._s + 0.018, 1.6);');
   L.push('      p.x += p.vx; p.y += p.vy;');
   L.push('      p.rotation += p.rv;');
   L.push('      p.alpha -= C.fade;');
