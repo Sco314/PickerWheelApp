@@ -186,9 +186,10 @@ canvas {
 .sb.on { background: rgba(78,205,196,0.16); border-color: rgba(78,205,196,0.45); color: #4ECDC4; }
 
 /* mode buttons */
-.mode-row { display: flex; gap: 3px; margin-bottom: 3px; }
+.mode-row { display: flex; gap: 2px; margin-bottom: 3px; flex-wrap: wrap; }
 .mb {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 3px 2px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.09);
@@ -554,10 +555,10 @@ canvas {
   <div class="ps" style="min-width:154px">
     <div class="pt">Launch Mode</div>
     <div class="mode-row">
-      <button class="mb on" data-mode="burst">💥 Burst</button>
-      <button class="mb"    data-mode="radial">🎯 Radial</button>
-      <button class="mb"    data-mode="rain">🌧 Rain</button>
-      <button class="mb"    data-mode="fountain">⛲ Fount</button>
+      <button class="mb on" data-mode="burst">💥Burst</button>
+      <button class="mb"    data-mode="radial">🎯Radial</button>
+      <button class="mb"    data-mode="rain">🌧Rain</button>
+      <button class="mb"    data-mode="fountain">⛲Fount</button>
     </div>
     <button class="af-btn" id="af-btn">▶ Auto-fire: Off</button>
     <div class="sr dim" id="rate-row">
@@ -813,9 +814,9 @@ function animate() {
 
   for (const p of particles) {
     if (p._radial) {
-      // Top-down POV: no gravity/wind, scale up to simulate depth
-      p.vx *= drag;
-      p.vy *= drag;
+      // Radial: 360° burst with gravity + wind still applied
+      p.vx = (p.vx + wind * 0.01) * drag;
+      p.vy = p.vy * drag + grav;
       p._scale = Math.min(p._scale + 0.018, 1.6);
     } else {
       p.vx = (p.vx + wind * 0.01) * drag;
@@ -886,17 +887,11 @@ function spawnFountain() {
 // ── Mode & auto-fire ───────────────────────────────
 let mode = 'burst', afOn = false, afInterval = null, afRate = 2;
 
-const gravRow = document.getElementById('s_gravity')?.closest('.sr');
-const windRow = document.getElementById('s_wind')?.closest('.sr');
-
 document.querySelectorAll('.mb').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.mb').forEach(b => b.classList.remove('on'));
     btn.classList.add('on');
     mode = btn.dataset.mode;
-    // Dim gravity/wind controls in radial mode (top-down, they don't apply)
-    if (gravRow) gravRow.classList.toggle('dim', mode === 'radial');
-    if (windRow) windRow.classList.toggle('dim', mode === 'radial');
     if (afOn) { stopAF(); startAF(); }
   });
 });
@@ -1173,8 +1168,9 @@ function genCode() {
   L.push('    cx.clearRect(0, 0, innerWidth, innerHeight);');
   L.push('    let alive = false;');
   L.push('    for (const p of P) {');
-  L.push('      if (p._s != null) { p.vx *= C.drag; p.vy *= C.drag; p._s = Math.min(p._s + 0.018, 1.6); }');
-  L.push('      else { p.vx = (p.vx + C.wind * 0.01) * C.drag; p.vy = p.vy * C.drag + C.gravity; }');
+  L.push('      p.vx = (p.vx + C.wind * 0.01) * C.drag;');
+  L.push('      p.vy = p.vy * C.drag + C.gravity;');
+  L.push('      if (p._s != null) p._s = Math.min(p._s + 0.018, 1.6);');
   L.push('      p.x += p.vx; p.y += p.vy;');
   L.push('      p.rotation += p.rv;');
   L.push('      p.alpha -= C.fade;');
