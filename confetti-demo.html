@@ -186,9 +186,10 @@ canvas {
 .sb.on { background: rgba(78,205,196,0.16); border-color: rgba(78,205,196,0.45); color: #4ECDC4; }
 
 /* mode buttons */
-.mode-row { display: flex; gap: 3px; margin-bottom: 3px; }
+.mode-row { display: flex; gap: 2px; margin-bottom: 3px; flex-wrap: wrap; }
 .mb {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 3px 2px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.09);
@@ -554,10 +555,10 @@ canvas {
   <div class="ps" style="min-width:154px">
     <div class="pt">Launch Mode</div>
     <div class="mode-row">
-      <button class="mb on" data-mode="burst">💥 Burst</button>
-      <button class="mb"    data-mode="radial">🎯 Radial</button>
-      <button class="mb"    data-mode="rain">🌧 Rain</button>
-      <button class="mb"    data-mode="fountain">⛲ Fount</button>
+      <button class="mb on" data-mode="burst">💥Burst</button>
+      <button class="mb"    data-mode="radial">🎯Radial</button>
+      <button class="mb"    data-mode="rain">🌧Rain</button>
+      <button class="mb"    data-mode="fountain">⛲Fount</button>
     </div>
     <button class="af-btn" id="af-btn">▶ Auto-fire: Off</button>
     <div class="sr dim" id="rate-row">
