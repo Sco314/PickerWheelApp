@@ -379,6 +379,51 @@ canvas {
   min-height: 20px;
   flex-shrink: 0;
 }
+
+/* ── MOBILE / RESPONSIVE ── */
+@media (max-width: 768px) {
+  body { overflow: auto; height: auto; min-height: 100vh; }
+
+  #test-area {
+    min-height: 55vh;
+    flex: none;
+    touch-action: none;
+  }
+  #test-hint {
+    font-size: 0.65rem;
+    white-space: normal;
+    padding: 0 12px;
+  }
+
+  #panel {
+    height: auto;
+    min-height: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 45vh;
+    padding: 4px;
+  }
+  .ps {
+    min-width: 140px;
+    flex: 1 1 140px;
+    padding: 6px 8px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.045);
+  }
+  .pt { font-size: 9px; }
+  .sr label { font-size: 10px; }
+  .sv { font-size: 10.5px; }
+  .sr input[type=range] {
+    height: 16px;
+    max-width: none;
+  }
+  .shape-btn { min-width: 26px; min-height: 26px; font-size: 12px; }
+  .cslot { width: 24px; height: 24px; }
+  .af-btn, .ab, .p-sel { font-size: 11px; padding: 6px 8px; }
+  #launch-center-btn { font-size: 0.8rem; padding: 7px 22px; }
+}
 </style>
 </head>
 <body>
@@ -391,7 +436,7 @@ canvas {
   <div id="ch-h"></div>
   <div id="ch-v"></div>
   <div id="ch-dot"></div>
-  <div id="test-hint">Click anywhere to test &nbsp;·&nbsp; drag to stream &nbsp;·&nbsp; [Space] center-launch</div>
+  <div id="test-hint">Tap / click to test &nbsp;·&nbsp; drag to stream &nbsp;·&nbsp; [Space] center-launch</div>
   <div id="particle-count">particles: 0</div>
   <button id="launch-center-btn">🚀 Launch from Center</button>
 </div>
@@ -577,6 +622,8 @@ const pcEl     = document.getElementById('particle-count');
 function resize() {
   const dpr = window.devicePixelRatio || 1;
   const r   = testArea.getBoundingClientRect();
+  canvas.style.width  = r.width  + 'px';
+  canvas.style.height = r.height + 'px';
   canvas.width  = r.width  * dpr;
   canvas.height = r.height * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -881,6 +928,30 @@ testArea.addEventListener('mousemove', e => {
   if (!hintGone) { hint.style.opacity = '0'; hintGone = true; }
 });
 window.addEventListener('mouseup', () => dragging = false);
+
+// ── Touch events (mobile Safari) ──────────────────
+testArea.addEventListener('touchstart', e => {
+  if (e.target.closest('#launch-center-btn')) return;
+  e.preventDefault();
+  dragging = true;
+  const t = e.touches[0];
+  const r = testArea.getBoundingClientRect();
+  launch(t.clientX - r.left, t.clientY - r.top);
+}, { passive: false });
+
+testArea.addEventListener('touchmove', e => {
+  if (!dragging) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  const r = testArea.getBoundingClientRect();
+  for (let i = 0; i < Math.max(2, Math.round(cfg.count * 0.06)); i++)
+    particles.push(mkParticle(t.clientX - r.left, t.clientY - r.top));
+  tick();
+  if (!hintGone) { hint.style.opacity = '0'; hintGone = true; }
+}, { passive: false });
+
+window.addEventListener('touchend', () => dragging = false);
+window.addEventListener('touchcancel', () => dragging = false);
 
 document.getElementById('launch-center-btn').addEventListener('click', () => {
   launch(testArea.clientWidth / 2, testArea.clientHeight / 2);
