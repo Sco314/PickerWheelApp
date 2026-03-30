@@ -25,7 +25,7 @@ body {
   position: relative;
   overflow: hidden;
   cursor: crosshair;
-  min-height: 0;
+  min-height: 200px;
   background: #1a1a2e;
 }
 
@@ -103,43 +103,46 @@ canvas {
 }
 
 /* ══════════════════════════════════════════
-   PANEL — 2-row layout, no horizontal scroll
-   Each row is flex; sections split the width
+   PANEL — responsive wrapping layout
+   Sections wrap into 2-column grid, scrollable
 ══════════════════════════════════════════ */
 #panel {
   flex-shrink: 0;
-  height: 272px;
   background: #0c0c1e;
   border-top: 1px solid rgba(255,255,255,0.08);
   display: flex;
   flex-direction: column;
+  height: auto;
+  min-height: 0;
+  overflow-y: auto;
+  max-height: 55vh;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Panel row */
 .pr {
-  flex: 1;
   display: flex;
-  align-items: stretch;
+  flex-wrap: wrap;
   border-bottom: 1px solid rgba(255,255,255,0.05);
-  overflow: hidden;
 }
 .pr:last-child { border-bottom: none; }
 
 /* Panel section */
 .ps {
-  flex: 1;
+  flex: 1 1 48%;
+  min-width: 200px;
   display: flex;
   flex-direction: column;
-  padding: 7px 10px;
+  padding: 8px 10px;
   border-right: 1px solid rgba(255,255,255,0.04);
-  min-width: 0;
-  overflow: hidden;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  overflow: visible;
 }
 .ps:last-child { border-right: none; }
 
 /* Section title */
 .pt {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -150,72 +153,71 @@ canvas {
 }
 .pt.sub {
   color: rgba(255,255,255,0.22);
-  font-size: 7.5px;
+  font-size: 9px;
   margin-top: 4px;
   margin-bottom: 3px;
 }
 
-/* Slider row: [label] [VALUE] [===bar===] */
+/* Slider row: [label] [VALUE] then [===bar===] on next line */
 .sr {
   display: flex;
   align-items: center;
-  gap: 4px;
+  flex-wrap: wrap;
+  gap: 3px 6px;
   margin-bottom: 3px;
   flex-shrink: 0;
 }
 .sr label {
-  width: 68px;
-  flex-shrink: 0;
-  font-size: 9px;
+  flex: 0 0 auto;
+  font-size: 11px;
   color: rgba(255,255,255,0.42);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .sv {
-  width: 34px;
+  flex: 0 0 auto;
   text-align: right;
-  flex-shrink: 0;
-  font-size: 9.5px;
+  font-size: 11px;
   color: #fde68a;
   font-variant-numeric: tabular-nums;
 }
 .sr input[type=range] {
-  flex: 1;
-  min-width: 40px;
-  max-width: 120px;
+  flex: 1 1 100%;
+  min-width: 0;
+  max-width: none;
   accent-color: #4ECDC4;
   cursor: pointer;
-  height: 3px;
+  height: 20px;
 }
 .sr.dim { opacity: 0.3; pointer-events: none; }
 
 /* Shape toggle buttons */
-.shape-row { display: flex; gap: 3px; flex-wrap: nowrap; margin-top: 2px; }
+.shape-row { display: flex; gap: 4px; flex-wrap: nowrap; margin-top: 2px; }
 .sb {
-  width: 26px; height: 21px;
+  flex: 1; min-width: 0;
+  height: 32px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 3px;
   color: rgba(255,255,255,0.38);
-  font-size: 11px;
+  font-size: 14px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: background .1s, color .1s, border-color .1s;
-  flex-shrink: 0;
 }
 .sb.on { background: rgba(78,205,196,0.15); border-color: rgba(78,205,196,0.45); color: #4ECDC4; }
 
 /* Mode buttons */
-.mode-row { display: flex; gap: 3px; margin-bottom: 3px; }
+.mode-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 3px; }
 .mb {
   flex: 1;
-  padding: 3px 2px;
+  padding: 5px 4px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 3px;
   color: rgba(255,255,255,0.42);
-  font: 8.5px/1 'Courier New', monospace;
+  font: 10px/1 'Courier New', monospace;
   cursor: pointer;
   text-align: center;
   white-space: nowrap;
@@ -226,7 +228,7 @@ canvas {
 /* Default palette swatches */
 .sw-row { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 3px; }
 .sw {
-  width: 17px; height: 17px;
+  width: 28px; height: 24px;
   border-radius: 2px;
   cursor: pointer;
   border: 2px solid transparent;
@@ -251,12 +253,12 @@ canvas {
 .swatch-x {
   display: none;
   position: absolute;
-  top: -5px; right: -5px;
-  width: 12px; height: 12px;
+  top: -6px; right: -6px;
+  width: 16px; height: 16px;
   background: #e74c3c;
   border-radius: 50%;
   border: none;
-  font-size: 7px;
+  font-size: 9px;
   color: #fff;
   cursor: pointer;
   z-index: 3;
@@ -268,13 +270,13 @@ canvas {
 /* Custom color slots */
 .cs-row { display: flex; flex-wrap: wrap; gap: 3px; }
 .cslot {
-  width: 17px; height: 17px;
+  width: 28px; height: 24px;
   border-radius: 2px;
   border: 1.5px dashed rgba(255,255,255,0.2);
   cursor: pointer;
   position: relative;
   display: flex; align-items: center; justify-content: center;
-  font-size: 10px;
+  font-size: 13px;
   color: rgba(255,255,255,0.28);
   transition: opacity .15s, transform .1s;
   flex-shrink: 0;
@@ -288,7 +290,7 @@ canvas {
 
 /* BG color picker row */
 .bg-row { display: flex; align-items: center; gap: 5px; margin-top: 4px; }
-.bg-row label { font-size: 9px; color: rgba(255,255,255,0.4); }
+.bg-row label { font-size: 11px; color: rgba(255,255,255,0.4); }
 .bg-row input[type=color] {
   width: 28px; height: 17px;
   border: 1px solid rgba(255,255,255,0.14);
@@ -299,12 +301,12 @@ canvas {
 /* Auto-fire button */
 .af-btn {
   width: 100%;
-  padding: 3px 0;
+  padding: 7px 8px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 3px;
   color: rgba(255,255,255,0.45);
-  font: 8.5px/1 'Courier New', monospace;
+  font: 12px/1 'Courier New', monospace;
   letter-spacing: 0.05em;
   cursor: pointer; text-align: center;
   margin-bottom: 3px;
@@ -320,19 +322,19 @@ canvas {
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 3px;
   color: rgba(255,255,255,0.6);
-  font: 9px/1 'Courier New', monospace;
-  padding: 3px 4px;
+  font: 12px/1 'Courier New', monospace;
+  padding: 7px 8px;
   cursor: pointer; margin-bottom: 2px;
 }
 
 /* Action buttons */
 .ab {
-  padding: 4px 6px;
+  padding: 8px 4px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 3px;
   color: rgba(255,255,255,0.5);
-  font: 9px/1 'Courier New', monospace;
+  font: 11px/1 'Courier New', monospace;
   letter-spacing: 0.04em;
   cursor: pointer;
   text-align: center; text-transform: uppercase;
@@ -397,13 +399,9 @@ canvas {
   padding: 0 13px 9px; min-height: 20px; flex-shrink: 0;
 }
 
-/* ── MOBILE / RESPONSIVE ── */
+/* ── MOBILE TWEAKS ── */
 @media (max-width: 768px) {
-  body { overflow: auto; height: auto; min-height: 100vh; }
-
   #test-area {
-    min-height: 45vh;
-    flex: none;
     touch-action: none;
   }
   #test-hint {
@@ -411,82 +409,7 @@ canvas {
     white-space: normal;
     padding: 0 12px;
   }
-
-  /* Stack the panel vertically instead of 2 fixed rows */
-  #panel {
-    height: auto;
-    min-height: 0;
-    flex-direction: column;
-    overflow-y: auto;
-    max-height: 55vh;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Each row wraps into a grid */
-  .pr {
-    flex: none;
-    flex-wrap: wrap;
-    overflow: visible;
-  }
-
-  /* Each section gets at least half width */
-  .ps {
-    flex: 1 1 48% !important;
-    min-width: 160px;
-    overflow: visible;
-    padding: 8px 10px;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-  }
-
-  /* Section titles bigger for readability */
-  .pt { font-size: 10px; }
-  .pt.sub { font-size: 9px; }
-
-  /* Slider rows: label+value on line 1, slider full-width on line 2 */
-  .sr {
-    flex-wrap: wrap;
-    gap: 3px 6px;
-  }
-  .sr label {
-    font-size: 11px;
-    width: auto;
-    flex: 0 0 auto;
-  }
-  .sv {
-    font-size: 11px;
-    width: auto;
-    flex: 0 0 auto;
-  }
-  .sr input[type=range] {
-    flex: 1 1 100%;
-    min-width: 0;
-    max-width: none;
-    height: 20px;
-  }
-
-  /* Mode buttons */
-  .mode-row { flex-wrap: wrap; gap: 4px; }
-  .mb { font-size: 10px; padding: 5px 4px; }
-
-  /* Shape buttons */
-  .shape-row { gap: 4px; }
-  .sb { flex: 1; min-width: 0; height: 32px; font-size: 14px; }
-
-  /* Action buttons */
-  .af-btn, .p-sel { font-size: 12px; padding: 7px 8px; }
-  .ab { font-size: 11px; padding: 8px 4px; }
-
-  /* Launch button */
   #launch-center-btn { font-size: 0.8rem; padding: 8px 24px; }
-
-  /* Swatches — bigger touch targets on mobile */
-  .sw { width: 28px; height: 24px; }
-  .cslot { width: 28px; height: 24px; font-size: 13px; }
-  .swatch-x {
-    width: 16px; height: 16px;
-    font-size: 9px;
-    top: -6px; right: -6px;
-  }
 }
 </style>
 </head>
