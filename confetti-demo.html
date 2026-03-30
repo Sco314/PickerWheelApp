@@ -381,6 +381,91 @@ canvas {
   letter-spacing: 0.06em; color: #4ECDC4;
   padding: 0 13px 9px; min-height: 20px; flex-shrink: 0;
 }
+
+/* ── MOBILE / RESPONSIVE ── */
+@media (max-width: 768px) {
+  body { overflow: auto; height: auto; min-height: 100vh; }
+
+  #test-area {
+    min-height: 45vh;
+    flex: none;
+    touch-action: none;
+  }
+  #test-hint {
+    font-size: 0.65rem;
+    white-space: normal;
+    padding: 0 12px;
+  }
+
+  /* Stack the panel vertically instead of 2 fixed rows */
+  #panel {
+    height: auto;
+    min-height: 0;
+    flex-direction: column;
+    overflow-y: auto;
+    max-height: 55vh;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Each row wraps into a grid */
+  .pr {
+    flex: none;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  /* Each section gets at least half width */
+  .ps {
+    flex: 1 1 48% !important;
+    min-width: 160px;
+    overflow: visible;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  /* Section titles bigger for readability */
+  .pt { font-size: 10px; }
+  .pt.sub { font-size: 9px; }
+
+  /* Slider rows: show label, value, AND slider */
+  .sr {
+    flex-wrap: wrap;
+    gap: 3px 6px;
+  }
+  .sr label {
+    font-size: 11px;
+    width: auto;
+    flex: 0 0 auto;
+  }
+  .sv {
+    font-size: 11px;
+    width: auto;
+    flex: 0 0 auto;
+  }
+  .sr input[type=range] {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: none;
+    height: 20px;
+  }
+
+  /* Mode buttons */
+  .mode-row { flex-wrap: wrap; gap: 4px; }
+  .mb { font-size: 10px; padding: 5px 4px; }
+
+  /* Shape buttons */
+  .sb { width: 32px; height: 28px; font-size: 13px; }
+
+  /* Action buttons */
+  .af-btn, .ab, .p-sel { font-size: 12px; padding: 7px 8px; }
+
+  /* Launch button */
+  #launch-center-btn { font-size: 0.8rem; padding: 8px 24px; }
+
+  /* Swatches */
+  .sw { width: 22px; height: 18px; }
+  .cslot { width: 22px; height: 18px; }
+}
 </style>
 </head>
 <body>
