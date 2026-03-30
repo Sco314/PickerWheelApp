@@ -13,6 +13,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: #111827;
   font-family: 'Courier New', Courier, monospace;
@@ -116,6 +117,7 @@ canvas {
   min-height: 0;
   overflow-y: auto;
   max-height: 55vh;
+  max-height: 55dvh;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -401,7 +403,10 @@ canvas {
 
 /* ── MOBILE TWEAKS ── */
 @media (max-width: 768px) {
+  body { overflow: auto; height: auto; min-height: 100vh; min-height: 100dvh; }
   #test-area {
+    min-height: 45vh;
+    flex: none;
     touch-action: none;
   }
   #test-hint {
