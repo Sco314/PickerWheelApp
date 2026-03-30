@@ -457,8 +457,8 @@ canvas {
     <div class="ps">
       <div class="pt">Launch Mode</div>
       <div class="mode-row">
-        <button class="mb on" data-mode="burst">💥 Burst</button>
-        <button class="mb"    data-mode="bloom">🌸 Bloom</button>
+        <button class="mb"    data-mode="burst">💥 Burst</button>
+        <button class="mb on" data-mode="bloom">🌸 Bloom</button>
         <button class="mb"    data-mode="rain">🌧 Rain</button>
         <button class="mb"    data-mode="fountain">⛲ Fount</button>
       </div>
@@ -996,7 +996,7 @@ function spawnBloom(x, y) {
 }
 
 // ── Mode & auto-fire ───────────────────────
-let mode = 'burst', afOn = false, afInterval = null, afRate = 2;
+let mode = 'bloom', afOn = false, afInterval = null, afRate = 2;
 
 document.querySelectorAll('.mb').forEach(btn => {
   btn.addEventListener('click', () => {
