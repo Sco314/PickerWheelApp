@@ -602,11 +602,6 @@ canvas {
       </div>
     </div>
 
-  </div><!-- /pr row 1 -->
-
-  <!-- ROW 2: particle size + output -->
-  <div class="pr">
-
     <div class="ps">
       <div class="pt">Particle Size</div>
       <div class="sr">
@@ -645,32 +640,26 @@ canvas {
         <span class="sv" id="v_rate">2.0</span>
         <input type="range" id="s_rate" min="0.3" max="6" step="0.1" value="2">
       </div>
-      <div style="margin-top:auto;font-size:7.5px;color:rgba(255,255,255,0.12);
-                  letter-spacing:.08em;padding-top:4px;text-align:center;line-height:1.8">
-        CONFETTI LAB v3.3<br>
-        <span style="font-size:7px;opacity:.7">[SPACE]=center · drag=stream</span>
-      </div>
     </div>
 
-  </div><!-- /pr row 2 -->
+  </div><!-- /pr row 1 -->
 
-  <!-- ROW 3: colors (full width) -->
+  <!-- ROW 2: colors (full width) -->
   <div class="pr">
 
     <div class="ps" style="flex:1">
       <div class="pt">Palette <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">tap=toggle · hold=edit</span></div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-        <div class="sw-row" id="sw-default" style="margin-bottom:0;flex:1"></div>
-        <div class="bg-row" style="margin-top:0;flex-shrink:0">
+      <div style="display:flex;flex-wrap:wrap;gap:3px;align-items:center">
+        <div class="sw-row" id="sw-default" style="display:contents"></div>
+        <div class="cs-row" id="sw-custom" style="display:contents"></div>
+        <div class="bg-row" style="margin:0;flex-shrink:0">
           <label>BG</label>
           <input type="color" id="bg-color" value="#1a1a2e" title="Test area background">
         </div>
       </div>
-      <div class="pt sub">Custom <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">tap empty=pick · tap=toggle · ✕=clear</span></div>
-      <div class="cs-row" id="sw-custom"></div>
     </div>
 
-  </div><!-- /pr row 3 -->
+  </div><!-- /pr row 2 -->
 
 </div><!-- /panel -->
 
