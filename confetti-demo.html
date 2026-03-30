@@ -513,19 +513,19 @@ canvas {
       <div class="pt">Spawn</div>
       <div class="sr">
         <label>Count</label>
-        <span class="sv" id="v_count">120</span>
-        <input type="range" id="s_count" min="10" max="500" step="5" value="120">
+        <span class="sv" id="v_count">115</span>
+        <input type="range" id="s_count" min="10" max="500" step="5" value="115">
       </div>
       <div class="sr">
         <label>Spread px</label>
-        <span class="sv" id="v_spread">60</span>
-        <input type="range" id="s_spread" min="0" max="300" step="5" value="60">
+        <span class="sv" id="v_spread">0</span>
+        <input type="range" id="s_spread" min="0" max="300" step="5" value="0">
       </div>
       <div class="pt sub">Shapes <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">— multi-select</span></div>
       <div class="shape-row">
         <button class="sb on" data-shape="rect"   title="Rectangle">▬</button>
-        <button class="sb"    data-shape="circle" title="Circle">●</button>
-        <button class="sb"    data-shape="star"   title="Star">★</button>
+        <button class="sb on" data-shape="circle" title="Circle">●</button>
+        <button class="sb on" data-shape="star"   title="Star">★</button>
         <button class="sb"    data-shape="tri"    title="Triangle">▲</button>
         <button class="sb"    data-shape="line"   title="Ribbon">━</button>
       </div>
@@ -582,8 +582,8 @@ canvas {
       <div class="pt">Physics</div>
       <div class="sr">
         <label>Gravity</label>
-        <span class="sv" id="v_gravity">0.25</span>
-        <input type="range" id="s_gravity" min="0" max="2" step="0.01" value="0.25">
+        <span class="sv" id="v_gravity">0.55</span>
+        <input type="range" id="s_gravity" min="0" max="2" step="0.01" value="0.55">
       </div>
       <div class="sr">
         <label>Air drag %</label>
@@ -868,8 +868,8 @@ function getColors() {
 
 // ── Slider wiring ──────────────────────────
 const DEFAULTS = {
-  count:120, spread:60, vx:14, vy:16, vyMin:4,
-  wind:0, gravity:0.25, drag:1, spin:0.3, fade:0.005,
+  count:115, spread:0, vx:14, vy:16, vyMin:4,
+  wind:0, gravity:0.55, drag:1, spin:0.3, fade:0.005,
   w:8, h:6, sizeVar:0.5,
 };
 const cfg = { ...DEFAULTS };
@@ -918,7 +918,7 @@ Object.keys(DEFAULTS).forEach(key => {
 initDone = true;
 
 // ── Shape selection ────────────────────────
-let activeShapes = ['rect'];
+let activeShapes = ['rect','circle','star'];
 document.querySelectorAll('.sb').forEach(btn => {
   btn.addEventListener('click', () => {
     btn.classList.toggle('on');
@@ -1177,7 +1177,7 @@ document.addEventListener('keydown', e => {
 
 // ── Presets ────────────────────────────────
 const PRESETS = {
-  default:   { count:120, spread:60,  vx:14, vy:16, vyMin:4, wind:0,   gravity:0.25, drag:1,     spin:0.30, fade:0.005, w:8,  h:6, sizeVar:0.5 },
+  default:   { count:115, spread:0,   vx:14, vy:16, vyMin:4, wind:0,   gravity:0.55, drag:1,     spin:0.30, fade:0.005, w:8,  h:6, sizeVar:0.5 },
   gentle:    { count:50,  spread:100, vx:4,  vy:7,  vyMin:2, wind:0.5, gravity:0.10, drag:0.990, spin:0.08, fade:0.003, w:6,  h:5, sizeVar:0.7 },
   fireworks: { count:200, spread:8,   vx:20, vy:24, vyMin:5, wind:0,   gravity:0.38, drag:0.980, spin:0.45, fade:0.007, w:6,  h:6, sizeVar:0.9 },
   blizzard:  { count:100, spread:180, vx:3,  vy:3,  vyMin:1, wind:1.2, gravity:0.06, drag:0.997, spin:0.05, fade:0.003, w:7,  h:7, sizeVar:0.6 },
