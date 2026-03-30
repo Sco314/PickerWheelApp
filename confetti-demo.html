@@ -4,7 +4,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Confetti Lab</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -147,28 +147,13 @@ canvas {
   margin-bottom: 4px;
   white-space: nowrap;
   flex-shrink: 0;
-  cursor: pointer;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
 }
-.pt::before {
-  content: '▾';
-  font-size: 7px;
-  color: rgba(78,205,196,0.4);
-  flex-shrink: 0;
-}
-.ps.collapsed .pt::before { content: '▸'; }
-.ps.collapsed > *:not(.pt:first-child) { display: none !important; }
 .pt.sub {
   color: rgba(255,255,255,0.22);
   font-size: 7.5px;
   margin-top: 4px;
   margin-bottom: 3px;
-  cursor: default;
 }
-.pt.sub::before { display: none; }
 
 /* Slider row: [label] [VALUE] [===bar===] */
 .sr {
@@ -412,19 +397,6 @@ canvas {
   padding: 0 13px 9px; min-height: 20px; flex-shrink: 0;
 }
 
-/* Footer spacer for Safari URL bar */
-#footer-spacer {
-  text-align: center;
-  padding: 8px 12px 12px;
-  font-size: 7.5px;
-  color: rgba(255,255,255,0.12);
-  letter-spacing: .08em;
-  line-height: 1.8;
-  background: #0c0c1e;
-  flex-shrink: 0;
-}
-#footer-spacer .footer-hint { display: block; font-size: 7px; opacity: .7; }
-
 /* ── MOBILE / RESPONSIVE ── */
 @media (max-width: 768px) {
   body { overflow: auto; height: auto; min-height: 100vh; }
@@ -470,32 +442,26 @@ canvas {
   .pt { font-size: 10px; }
   .pt.sub { font-size: 9px; }
 
-  /* Slider rows: label + value + slider all on one line */
+  /* Slider rows: label+value on line 1, slider full-width on line 2 */
   .sr {
-    flex-wrap: nowrap;
-    gap: 4px;
+    flex-wrap: wrap;
+    gap: 3px 6px;
   }
   .sr label {
-    font-size: 10px;
-    width: 72px;
-    flex: 0 0 72px;
+    font-size: 11px;
+    width: auto;
+    flex: 0 0 auto;
   }
   .sv {
-    font-size: 10px;
-    width: 32px;
-    flex: 0 0 32px;
-    text-align: right;
+    font-size: 11px;
+    width: auto;
+    flex: 0 0 auto;
   }
   .sr input[type=range] {
-    flex: 1;
+    flex: 1 1 100%;
     min-width: 0;
     max-width: none;
     height: 20px;
-  }
-
-  /* Footer spacer - extra padding for Safari URL bar */
-  #footer-spacer {
-    padding-bottom: calc(env(safe-area-inset-bottom, 80px) + 20px);
   }
 
   /* Mode buttons */
@@ -682,24 +648,26 @@ canvas {
     <div class="ps">
       <div class="pt">Output</div>
       <div style="display:flex;gap:4px">
-        <button class="ab hi" id="out-btn" style="flex:1.2">📋 Export</button>
+        <button class="ab hi" id="out-btn" style="flex:1">📋 Export</button>
         <button class="ab" id="share-btn" style="flex:1">🔗 Share</button>
+      </div>
+      <div style="display:flex;gap:4px;margin-top:3px">
         <button class="ab" id="clear-btn" style="flex:1">🧹 Clear</button>
         <button class="ab" id="reset-btn" style="flex:1">↩ Reset</button>
       </div>
       <label style="display:flex;align-items:center;gap:5px;margin-top:4px;font-size:8.5px;color:rgba(255,255,255,0.4);cursor:pointer">
         <input type="checkbox" id="auto-preview-cb" checked> Auto-preview
       </label>
+      <div style="margin-top:auto;font-size:7.5px;color:rgba(255,255,255,0.12);
+                  letter-spacing:.08em;padding-top:4px;text-align:center;line-height:1.8">
+        CONFETTI LAB v3.3<br>
+        <span style="font-size:7px;opacity:.7">[SPACE]=center · drag=stream</span>
+      </div>
     </div>
 
   </div><!-- /pr row 2 -->
 
 </div><!-- /panel -->
-
-<div id="footer-spacer">
-  CONFETTI LAB v3.3<br>
-  <span class="footer-hint">[SPACE]=center · drag=stream</span>
-</div>
 
 <!-- OUTPUT MODAL -->
 <div id="out-modal">
@@ -1598,22 +1566,6 @@ document.getElementById('m-copy-btn').addEventListener('click', () => {
       document.getElementById('out-fb').textContent = '⚠️ Copy failed — select all text manually (Ctrl+A)';
     });
 });
-
-// ── Collapsible sections ──────────────────
-document.querySelectorAll('.ps > .pt:not(.sub)').forEach(pt => {
-  if (pt !== pt.parentElement.querySelector('.pt')) return;
-  pt.addEventListener('click', () => {
-    pt.closest('.ps').classList.toggle('collapsed');
-  });
-});
-if (window.innerWidth <= 768) {
-  document.querySelectorAll('.ps').forEach(ps => {
-    const h = ps.querySelector('.pt');
-    if (h && (h.textContent.trim().startsWith('Physics') || h.textContent.trim().startsWith('Particle Size'))) {
-      ps.classList.add('collapsed');
-    }
-  });
-}
 
 // ── Apply URL params on load ──────────────
 (function() {
