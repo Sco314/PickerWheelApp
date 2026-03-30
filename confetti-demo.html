@@ -232,10 +232,38 @@ canvas {
   border: 2px solid transparent;
   transition: opacity .15s, border-color .15s, transform .1s;
   flex-shrink: 0;
+  position: relative;
 }
 .sw.on  { border-color: rgba(255,255,255,0.8); }
 .sw.off { opacity: 0.15; }
 .sw:hover { transform: scale(1.28); z-index: 1; }
+/* Swatch color input: full overlay, invisible */
+.sw input[type=color], .cslot input[type=color] {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none; padding: 0;
+  pointer-events: none;
+}
+/* Clear button on swatches and slots */
+.swatch-x {
+  display: none;
+  position: absolute;
+  top: -5px; right: -5px;
+  width: 12px; height: 12px;
+  background: #e74c3c;
+  border-radius: 50%;
+  border: none;
+  font-size: 7px;
+  color: #fff;
+  cursor: pointer;
+  z-index: 3;
+  align-items: center; justify-content: center;
+  line-height: 1;
+  padding: 0;
+}
 
 /* Custom color slots */
 .cs-row { display: flex; flex-wrap: wrap; gap: 3px; }
@@ -255,20 +283,8 @@ canvas {
 .cslot.on.has { border-color: rgba(255,255,255,0.8); }
 .cslot.off { opacity: 0.15; }
 .cslot:hover { transform: scale(1.28); z-index: 1; }
-.cslot .ce {
-  display: none;
-  position: absolute;
-  top: -4px; right: -4px;
-  width: 9px; height: 9px;
-  background: #4ECDC4;
-  border-radius: 50%;
-  font-size: 5px;
-  color: #000;
-  align-items: center; justify-content: center;
-  cursor: pointer; z-index: 2; line-height: 1;
-}
-.cslot.has:hover .ce { display: flex; }
-#color-inputs { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; overflow: hidden; }
+.cslot.has .swatch-x { display: flex; }
+.cslot:not(.has) input[type=color] { pointer-events: auto; }
 
 /* BG color picker row */
 .bg-row { display: flex; align-items: center; gap: 5px; margin-top: 4px; }
@@ -462,15 +478,18 @@ canvas {
   /* Launch button */
   #launch-center-btn { font-size: 0.8rem; padding: 8px 24px; }
 
-  /* Swatches */
-  .sw { width: 22px; height: 18px; }
-  .cslot { width: 22px; height: 18px; }
+  /* Swatches — bigger touch targets on mobile */
+  .sw { width: 28px; height: 24px; }
+  .cslot { width: 28px; height: 24px; font-size: 13px; }
+  .swatch-x {
+    width: 16px; height: 16px;
+    font-size: 9px;
+    top: -6px; right: -6px;
+  }
 }
 </style>
 </head>
 <body>
-
-<div id="color-inputs"></div>
 
 <!-- TEST AREA -->
 <div id="test-area">
@@ -584,9 +603,9 @@ canvas {
   <div class="pr">
 
     <div class="ps" style="flex:1.6">
-      <div class="pt">Palette <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">click=toggle</span></div>
+      <div class="pt">Palette <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">tap=toggle · hold=edit</span></div>
       <div class="sw-row" id="sw-default"></div>
-      <div class="pt sub">Custom <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">+=pick · click=toggle · hover=edit</span></div>
+      <div class="pt sub">Custom <span style="opacity:.4;font-size:7px;font-weight:400;letter-spacing:0;text-transform:none">tap empty=pick · tap=toggle · ✕=clear</span></div>
       <div class="cs-row" id="sw-custom"></div>
       <div class="bg-row">
         <label>BG</label>
@@ -686,67 +705,147 @@ const PALETTE_HEX = [
   '#FF6B6B','#4ECDC4','#45B7D1','#FFEAA7','#DDA0DD',
   '#F7DC6F','#BB8FCE','#85C1E9','#F0B27A','#82E0AA'
 ];
-const palette = PALETTE_HEX.map(hex => ({ hex, on: true }));
+const palette = PALETTE_HEX.map((hex, i) => ({ hex, orig: hex, on: true }));
 const swDefault = document.getElementById('sw-default');
-palette.forEach(c => {
+palette.forEach((c, i) => {
   const el = document.createElement('div');
   el.className = 'sw on';
   el.style.background = c.hex;
-  el.title = c.hex;
-  el.addEventListener('click', () => {
-    c.on = !c.on;
+
+  // Color input inside swatch (for long-press edit)
+  const inp = document.createElement('input');
+  inp.type = 'color';
+  inp.value = c.hex;
+  el.appendChild(inp);
+
+  // Reset button (shows if color was changed from original)
+  const xBtn = document.createElement('button');
+  xBtn.className = 'swatch-x';
+  xBtn.textContent = '↺';
+  xBtn.title = 'Reset to original';
+  el.appendChild(xBtn);
+
+  function refresh() {
+    el.style.background = c.hex;
     el.classList.toggle('on', c.on);
     el.classList.toggle('off', !c.on);
+    inp.value = c.hex;
+    xBtn.style.display = (c.hex !== c.orig) ? 'flex' : 'none';
+  }
+
+  // Tap = toggle on/off
+  // Long-press = open color picker
+  let pressTimer = null, didLongPress = false;
+  el.addEventListener('pointerdown', e => {
+    if (e.target === xBtn) return;
+    didLongPress = false;
+    pressTimer = setTimeout(() => { didLongPress = true; inp.click(); }, 500);
   });
+  el.addEventListener('pointerup', e => {
+    clearTimeout(pressTimer);
+    if (e.target === xBtn) return;
+    if (!didLongPress && e.target !== inp) {
+      c.on = !c.on;
+      refresh();
+    }
+  });
+  el.addEventListener('pointerleave', () => clearTimeout(pressTimer));
+
+  // Color changed via picker
+  inp.addEventListener('input', () => {
+    c.hex = inp.value;
+    c.on = true;
+    refresh();
+  });
+
+  // Reset to original
+  xBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    c.hex = c.orig;
+    c.on = true;
+    refresh();
+  });
+
   swDefault.appendChild(el);
 });
 
 // ── Custom color slots (8) ─────────────────
 const customPalette = Array.from({ length: 8 }, () => ({ hex: null, on: false }));
 const swCustom = document.getElementById('sw-custom');
-const colorInputsCont = document.getElementById('color-inputs');
 
 customPalette.forEach(c => {
-  const slot  = document.createElement('div');
+  const slot = document.createElement('div');
   slot.className = 'cslot';
-  slot.appendChild(document.createTextNode('+'));
 
-  const badge = document.createElement('span');
-  badge.className = 'ce';
-  badge.textContent = '✎';
-  badge.title = 'Change color';
-  slot.appendChild(badge);
+  const plus = document.createTextNode('+');
+  slot.appendChild(plus);
 
+  // Color input: fills the slot as invisible overlay
+  // When slot is empty, pointer-events: auto (CSS handles this)
+  // so tapping the slot directly opens the native picker
   const inp = document.createElement('input');
   inp.type = 'color';
   inp.value = '#ff6b6b';
-  inp.style.cssText = 'position:absolute;visibility:hidden;width:0;height:0;';
-  colorInputsCont.appendChild(inp);
+  slot.appendChild(inp);
+
+  // Clear button
+  const xBtn = document.createElement('button');
+  xBtn.className = 'swatch-x';
+  xBtn.textContent = '✕';
+  xBtn.title = 'Clear color';
+  slot.appendChild(xBtn);
 
   function refresh() {
     if (c.hex) {
       slot.style.background = c.hex;
-      [...slot.childNodes].forEach(n => { if (n !== badge) n.remove(); });
+      plus.textContent = '';
       slot.classList.add('has');
       slot.classList.toggle('on', c.on);
       slot.classList.toggle('off', !c.on);
-      slot.title = c.hex + ' · click=toggle · hover=edit';
+      inp.value = c.hex;
+      inp.style.pointerEvents = 'none';
     } else {
       slot.style.background = '';
-      if (![...slot.childNodes].some(n => n.nodeType === 3)) {
-        slot.insertBefore(document.createTextNode('+'), badge);
-      }
-      slot.classList.remove('has','on','off');
-      slot.title = 'Click to pick color';
+      plus.textContent = '+';
+      slot.classList.remove('has', 'on', 'off');
+      inp.style.pointerEvents = 'auto';
     }
   }
 
-  slot.addEventListener('click', e => {
-    if (e.target === badge) return;
-    if (c.hex) { c.on = !c.on; refresh(); } else inp.click();
+  // Tap on filled slot = toggle on/off
+  // Long-press on filled slot = edit color
+  let pressTimer = null, didLongPress = false;
+  slot.addEventListener('pointerdown', e => {
+    if (e.target === xBtn || e.target === inp) return;
+    if (!c.hex) return; // empty slots: input handles it
+    didLongPress = false;
+    pressTimer = setTimeout(() => { didLongPress = true; inp.click(); }, 500);
   });
-  badge.addEventListener('click', e => { e.stopPropagation(); inp.click(); });
-  inp.addEventListener('input', () => { c.hex = inp.value; c.on = true; refresh(); });
+  slot.addEventListener('pointerup', e => {
+    clearTimeout(pressTimer);
+    if (e.target === xBtn || e.target === inp) return;
+    if (!c.hex) return;
+    if (!didLongPress) {
+      c.on = !c.on;
+      refresh();
+    }
+  });
+  slot.addEventListener('pointerleave', () => clearTimeout(pressTimer));
+
+  // Color picked (new or edited)
+  inp.addEventListener('input', () => {
+    c.hex = inp.value;
+    c.on = true;
+    refresh();
+  });
+
+  // Clear slot
+  xBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    c.hex = null;
+    c.on = false;
+    refresh();
+  });
 
   swCustom.appendChild(slot);
   refresh();
@@ -1078,7 +1177,24 @@ document.getElementById('reset-btn').addEventListener('click', () => {
   document.getElementById('bg-color').value = '#1a1a2e';
   testArea.style.background = '#1a1a2e';
   document.getElementById('bg-label').textContent = '#1a1a2e';
-  palette.forEach((c,i) => { c.on = true; swDefault.children[i].classList.remove('off'); swDefault.children[i].classList.add('on'); });
+  // Reset default palette to original colors
+  palette.forEach((c,i) => {
+    c.hex = c.orig; c.on = true;
+    const el = swDefault.children[i];
+    el.style.background = c.hex;
+    el.classList.remove('off'); el.classList.add('on');
+    el.querySelector('input[type=color]').value = c.hex;
+    el.querySelector('.swatch-x').style.display = 'none';
+  });
+  // Clear custom slots
+  customPalette.forEach((c,i) => {
+    c.hex = null; c.on = false;
+    const slot = swCustom.children[i];
+    slot.style.background = '';
+    slot.childNodes[0].textContent = '+';
+    slot.classList.remove('has','on','off');
+    slot.querySelector('input[type=color]').style.pointerEvents = 'auto';
+  });
 });
 
 // ── Export code ────────────────────────────
