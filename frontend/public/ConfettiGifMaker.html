@@ -614,6 +614,7 @@ canvas {
           <option value="blizzard">❄️ Blizzard</option>
           <option value="party">🥳 Party</option>
           <option value="subtle">✨ Subtle</option>
+          <option value="caterpillar">🐛 Caterpillar</option>
         </select>
         <button class="ab" id="save-preset-btn" title="Save current settings">💾</button>
       </div>
@@ -1300,6 +1301,7 @@ const PRESETS = {
   blizzard:  { count:100, spread:180, vx:3,  vy:3,  vyMin:1, wind:1.2, gravity:0.06, drag:0.997, spin:0.05, fade:0.003, w:7,  h:7, sizeVar:0.6 },
   party:     { count:300, spread:80,  vx:16, vy:20, vyMin:6, wind:0,   gravity:0.28, drag:1,     spin:0.35, fade:0.004, w:10, h:8, sizeVar:0.5 },
   subtle:    { count:35,  spread:40,  vx:6,  vy:9,  vyMin:2, wind:0,   gravity:0.18, drag:0.990, spin:0.12, fade:0.009, w:5,  h:4, sizeVar:0.4 },
+  caterpillar:{ count:500, spread:0,   vx:0,  vy:1,  vyMin:0, wind:-3,  gravity:0,    drag:0.900, spin:0.50, fade:0.001, w:25, h:19,sizeVar:0.2, shapes:['circle','star','tri'] },
 };
 // ── Shared state helpers ──────────────────
 function getCurrentState() {
@@ -1416,9 +1418,16 @@ document.getElementById('preset-sel').addEventListener('change', e => {
     if (!p) return;
     suppressPreview = true;
     Object.entries(p).forEach(([k,v]) => {
+      if (k === 'shapes') return;
       const inp = document.getElementById('s_'+k);
       if (inp) { inp.value = v; inp.dispatchEvent(new Event('input')); }
     });
+    if (p.shapes) {
+      activeShapes = [...p.shapes];
+      document.querySelectorAll('.sb').forEach(btn => {
+        btn.classList.toggle('on', activeShapes.includes(btn.dataset.shape));
+      });
+    }
     suppressPreview = false;
   }
   e.target.value = '';
